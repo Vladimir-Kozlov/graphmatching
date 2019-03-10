@@ -25,7 +25,7 @@ def edge_decompozition(A):
     # G and H are full matrices, but can be made sparce
     h, w = A.shape
     assert w == h
-    assert np.all(A == 0 || A == 1)
+    assert np.all(np.logical_or(A == 0, A == 1))
     c = np.sum(A) # number of edges
     G = np.zeros(shape=(w, c))
     H = np.zeros(shape=(h, c))
@@ -36,7 +36,7 @@ def edge_decompozition(A):
             if A[i, j] == 1:
                 G[i, k] = 1
                 H[j, k] = 1
-                k++
+                k += 1
 
     return G, H
 
