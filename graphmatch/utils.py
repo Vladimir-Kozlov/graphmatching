@@ -70,3 +70,5 @@ def hungarian(M, goal='min'):
     X = np.zeros(shape=M.shape)
     X[ri, ci] = 1
     return X
+
+    
