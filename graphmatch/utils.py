@@ -1,7 +1,11 @@
 import numpy as np
+import scipy.optimize as opt
 
 def principal_eig(M, num_iter=100):
     # Computes principal eigenvector v of matrix M by power iteration
+    # Input: M: square matrix (with preferrably positive elements)
+    #        num_iter: number of power iterations
+    # Output: v: normalized principal eigenvector
     h, w = M.shape
     assert w == h
     # normalized random vector with positive elements
@@ -48,3 +52,14 @@ def edge_compose(G, H):
     assert h == w
     assert c1 == c2
     return np.matmul(G, H.T)
+
+
+def hungarian(K, goal='min'):
+    # Wrapper for Hungarian algorithm from scipy.optimize
+    if goal == 'max':
+        K = -K
+
+    ri, ci = opt.linear_sum_assignment(K)
+    X = np.zeros(shape=K.shape)
+    X[ri, ci] = 1
+    return X
