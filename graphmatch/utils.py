@@ -15,7 +15,7 @@ def principal_eig(M, num_iter=100):
     return v
 
 
-def edge_decompozition(A):
+def edge_decompose(A):
     # Constructs incidence matrices G and H from adjacency matrix A
     # Input: A: adjacency matrix of a directed graph (square, of 0s and 1s)
     # Output: G, H: incidence matrices: {0, 1}^{n x c}, where c is the number of edges
@@ -41,7 +41,7 @@ def edge_decompozition(A):
     return G, H
 
 
-def edge_composition(G, H):
+def edge_compose(G, H):
     # Constructs adjacency matrix A from incidence matrices G and H
     h, c1 = G.shape
     w, c2 = H.shape
