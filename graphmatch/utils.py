@@ -54,12 +54,19 @@ def edge_compose(G, H):
     return np.matmul(G, H.T)
 
 
-def hungarian(K, goal='min'):
+def symm(M):
+    # Make square matrix symmetric
+    h, w = M.shape
+    assert h == w
+    return (M + M.T) / 2.
+
+
+def hungarian(M, goal='min'):
     # Wrapper for Hungarian algorithm from scipy.optimize
     if goal == 'max':
-        K = -K
+        M = -M
 
-    ri, ci = opt.linear_sum_assignment(K)
-    X = np.zeros(shape=K.shape)
+    ri, ci = opt.linear_sum_assignment(M)
+    X = np.zeros(shape=M.shape)
     X[ri, ci] = 1
     return X
