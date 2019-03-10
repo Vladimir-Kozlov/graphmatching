@@ -8,7 +8,7 @@ def sm(W, N1, N2, num_iter=100):
     # Input: W: pairwise affinity matrix with size [N1*N2, N1*N2]
     #        N1, N2: number of vertices in graphs
     #        num_iter: number of iterations in power iteration method
-    # Output: X: assignment matrix with size [N1, N2]
+    # Output: X: continuous 'soft assignment' with size [N1, N2]
     h, w = W.shape
     assert h == N1 * N2
     assert w == N1 * N2
@@ -24,6 +24,8 @@ def smac(W, N1, N2, C=None, d=None, num_iter=100):
     #              if not passed, then defaults to doubly stochastic, requiring N1 == N2
     #              C: full-rank with shape [k, N1 * N2], k < N1 * N2
     #              d: vector of length k
+    #        num_iter: number of iterations for power principal eigenvector computation
+    # Output: X: continuous 'soft assignment' with size [N1, N2], satisfying passed constraints
     h, w = W.shape
     assert h == N1 * N2
     assert w == N1 * N2
