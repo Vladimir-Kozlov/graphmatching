@@ -6,3 +6,4 @@ Implemented so far:
 * [SMAC](https://cis.upenn.edu/~jshi/papers/nips2006_spectral_matching_cour_shi.pdf)
 * SPGM
 * [IPFP](https://papers.nips.cc/paper/3756-an-integer-projected-fixed-point-method-for-graph-matching-and-map-inference.pdf)
+* GAGM

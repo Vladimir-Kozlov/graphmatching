@@ -72,6 +72,8 @@ def smac(W, N1, N2, C=None, d=None, num_iter=100):
 def gagm(W, N1, N2, beta_range=np.logspace(start=-5., stop=5., num=11, endpoint=True, base=10.), num_sinkh_iter=100, pad=0):
     # Graduated Assignment Graph Matching
     # Gold, Rangarajan "A Graduated Assignment Algorithm for Graph Matching"
+    # Input: W: pairwise affinity matrix
+    #        N1, N2: number of vertices in graphs
     h, w = W.shape
     assert h == N1 * N2
     assert w == N1 * N2
@@ -82,8 +84,10 @@ def gagm(W, N1, N2, beta_range=np.logspace(start=-5., stop=5., num=11, endpoint=
 
     for beta in beta_range:
         u[:N1, :N2] = np.dot(W, x).reshape((N1, N2), order='F')
+        # Softassign - a soft version of Hungarian alogithm
         v = np.exp(beta * (u - np.max(u, axis=0, keepdims=True)))
         for k in range(num_sinkh_iter):
+            # Sinkhorn iteration implemented here for numerical stability reasons
             v /= np.sum(v, axis=0, keepdims=True)
             v[:, N2] *= max(N1, N2) - N2 + pad + 1.
             v /= np.sum(v, axis=1, keepdims=True)
