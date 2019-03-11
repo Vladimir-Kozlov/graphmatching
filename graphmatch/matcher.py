@@ -167,7 +167,7 @@ def ipfp(W, N1, N2, num_iter=100, eps=1e-6):
     assert N1 == N2 # due to equality constraints
     W = utils.symm(W)
 
-    x = np.random.uniform(low=0., high=1., size=(N1, N2)) / 2. + .5
+    x = np.ones((N1, N2))
     x = utils.sinkhorn(x).reshape((N1 * N2, 1), order='F')
     x0 = np.copy(x)
     s = np.dot(x0.T, np.dot(W, x0))
