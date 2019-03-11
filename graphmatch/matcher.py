@@ -74,6 +74,8 @@ def spgm(W, N1, N2, gamma=1., num_iter=100, num_pocs_iter=100, eps=1e-6):
     # van Wyk, van Wyk, "A POCS-Based Graph Matching Algorithm"
     # Input: W: pairwise affinity matrix
     #        N1, N2: number of vertices in graphs
+    #        eps: solution precision
+    # Ouput: X: continuous doubly stochastic 'soft assignment' with size [N1, N2]
 
     h, w = W.shape
     assert h == N1 * N2
@@ -126,3 +128,40 @@ def spgm(W, N1, N2, gamma=1., num_iter=100, num_pocs_iter=100, eps=1e-6):
         if np.linalg.norm(x - x0) < eps:
             break
     return x.reshape((N1, N2), order='F')
+
+
+def ipfp(W, N1, N2, num_iter=100, eps=1e-6):
+    # Integer Projected Fixed Point
+    # Leordeanu, Hebert, Sukthankar "An Integer Projected Fixed Point Method for Graph Matching and MAP Inference"
+    # Input: W: pairwise affinity matrix
+    #        N1, N2: number of vertices in graphs
+    # Ouput: X: continuous doubly stochastic 'soft assignment' with size [N1, N2]
+    h, w = W.shape
+    assert h == N1 * N2
+    assert w == N1 * N2
+    assert N1 == N2 # due to equality constraints
+    W = utils.symm(W)
+
+    x = np.random.uniform(low=0., high=1., size=(N1, N2)) / 2. + .5
+    x = utils.sinkhorn(x).reshape((N1 * N2, 1), order='F')
+    x0 = np.copy(x)
+    s = np.dot(x0.T, np.dot(W, x0))
+
+    for k in range(num_iter):
+        u = np.dot(W, x)
+        b = utils.hungarian(u.reshape((N1, N2), order='F'), goal='max').reshape((N1*N2, 1), order='F');
+        c = np.dot(b.T - x.T, u)
+        d = np.dot(b.T - x.T, np.dot(W, b)) - c
+        xp = np.copy(x)
+        if d >= 0:
+            x = b
+        else:
+            r = min(-c / d, 1)
+            x += r * (b - x)
+        if np.dot(b.T, np.dot(W, b)) >= s:
+            s = np.dot(b.T, np.dot(W, b))
+            x0 = b
+        if np.linalg.norm(x - xp) < eps:
+            break
+    return x0.reshape((N1, N2), order='F')
+
