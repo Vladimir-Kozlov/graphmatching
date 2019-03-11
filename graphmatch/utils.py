@@ -30,7 +30,7 @@ def edge_decompose(A):
     h, w = A.shape
     assert w == h
     assert np.all(np.logical_or(A == 0, A == 1))
-    c = np.sum(A) # number of edges
+    c = np.int(np.sum(A)) # number of edges
     G = np.zeros(shape=(w, c))
     H = np.zeros(shape=(h, c))
 
@@ -81,3 +81,13 @@ def sinkhorn(M, pad=0, num_iter=100):
         v = np.sum(M, axis=1, keepdims=True)
         M = ((max(h, w) + pad) * M) / (v * w)
     return M
+
+
+def construct_affinity_matrix(Kp, Kq, A1, A2):
+    G1, H1 = edge_decompose(A1)
+    G2, H2 = edge_decompose(A2)
+    u = np.squeeze(Kp.reshape((-1, 1), order='F'))
+    v = np.squeeze(Kq.reshape((-1, 1), order='F'))
+    X = np.kron(G2, G1)
+    Y = np.kron(H2, H1)
+    return np.diag(u) + np.dot(X, np.dot(np.diag(v), Y.T))
