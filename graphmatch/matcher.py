@@ -69,3 +69,60 @@ def smac(W, N1, N2, C=None, d=None, num_iter=100):
     return v.reshape((N1, N2), order='F')
 
 
+def spgm(W, N1, N2, gamma=1., num_iter=100, num_pocs_iter=100, eps=1e-6):
+    # Successive Projection Graph Matching
+    # van Wyk, van Wyk, "A POCS-Based Graph Matching Algorithm"
+    # Input: W: pairwise affinity matrix
+    #        N1, N2: number of vertices in graphs
+
+    h, w = W.shape
+    assert h == N1 * N2
+    assert w == N1 * N2
+    assert N1 == N2 # due to equality constraints
+    W = utils.symm(W)
+    # projection of matrix X onto set of row-wise stochastic matrices
+    def pocs1(X):
+        for i in range(N1):
+            p = np.copy(X[i, :])
+            f = p.sum()
+            s = N2
+            idx = np.argsort(p)
+            for j in range(N2):
+                p[idx[j]] += (1. - f) / s
+                if p[idx[j]] < 0:
+                    p[idx[j]] = 0
+                    f -= X[i, idx[j]]
+                    s-= 1
+            X[i, :] = p
+        return X
+    # projection of matrix X onto set of column-wise stochastic matrices
+    def pocs2(X):
+        for j in range(N2):
+            p = np.copy(X[:, j])
+            f = p.sum()
+            s = N1
+            idx = np.argsort(p)
+            for i in range(N1):
+                p[idx[i]] += (1. - f) / s
+                if p[idx[i]] < 0:
+                    p[idx[i]] = 0
+                    f -= X[idx[i], j]
+                    s-= 1
+            X[:, j] = p
+        return X
+
+    x = np.random.uniform(low=0., high=1., size=(w, 1)) / 2. + .5
+    for k in range(num_iter):
+        x0 = np.copy(x)
+        u = np.dot(W, x)
+        x += gamma * u / np.linalg.norm(u)
+        v = x.reshape((N1, N2), order='F')
+        for p in range(num_pocs_iter):
+            v = pocs1(v)
+            v = pocs2(v)
+            if np.all(v.sum(axis=0) == 1.) and np.all(v.sum(axis=1) == 1.):
+                break
+        x = v.reshape((N1 * N2, 1), order='F')
+        if np.linalg.norm(x - x0) < eps:
+            break
+    return x.reshape((N1, N2), order='F')
