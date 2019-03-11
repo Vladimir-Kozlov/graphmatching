@@ -71,4 +71,13 @@ def hungarian(M, goal='min'):
     X[ri, ci] = 1
     return X
 
-    
+def sinkhorn(M, pad=0, num_iter=100):
+    # Sinkhorn-Knopp algorithm for turning positive matrix into doubly stochastic
+    # If matrix is square, it becomes doubly stochastic
+    h, w = M.shape
+    for k in range(num_iter):
+        u = np.sum(M, axis=0, keepdims=True)
+        M = ((max(h, w) + pad) * M) / (u * h)
+        v = np.sum(M, axis=1, keepdims=True)
+        M = ((max(h, w) + pad) * M) / (v * w)
+    return M

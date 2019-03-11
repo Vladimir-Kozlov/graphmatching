@@ -3,7 +3,7 @@ import utils
 
 
 def sm(W, N1, N2, num_iter=100):
-    # Spectral Matching algorithm
+    # Spectral Matching
     # Leordeanu, Hebert "A Spectral Technique for Correspondence Problems Using Pairwise Constraints"
     # Input: W: pairwise affinity matrix with size [N1*N2, N1*N2]
     #        N1, N2: number of vertices in graphs
@@ -13,7 +13,7 @@ def sm(W, N1, N2, num_iter=100):
     assert h == N1 * N2
     assert w == N1 * N2
     v = utils.principal_eig(W, num_iter=num_iter)
-    return v.reshape((N1, N2))
+    return v.reshape((N1, N2), order='F')
 
 def smac(W, N1, N2, C=None, d=None, num_iter=100):
     # Spectral Graph Matching with Affine Constraints
@@ -66,4 +66,6 @@ def smac(W, N1, N2, C=None, d=None, num_iter=100):
     if d[-1] != 0:
         # if np.dot(C[-1, :], v) == 0, then the problem is ill-posed and has no solution (refer to paper for reason why) 
         v /= np.dot(C[-1, :], v) * d[-1]
-    return v.reshape((N1, N2))
+    return v.reshape((N1, N2), order='F')
+
+
