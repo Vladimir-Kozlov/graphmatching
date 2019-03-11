@@ -69,6 +69,31 @@ def smac(W, N1, N2, C=None, d=None, num_iter=100):
     return v.reshape((N1, N2), order='F')
 
 
+def gagm(W, N1, N2, beta_range=np.logspace(start=-5., stop=5., num=11, endpoint=True, base=10.), num_sinkh_iter=100, pad=0):
+    # Graduated Assignment Graph Matching
+    # Gold, Rangarajan "A Graduated Assignment Algorithm for Graph Matching"
+    h, w = W.shape
+    assert h == N1 * N2
+    assert w == N1 * N2
+    W = utils.symm(W)
+
+    x = np.ones((N1 * N2, 1))
+    u = np.zeros((N1 + 1, N2 + 1))
+
+    for beta in beta_range:
+        u[:N1, :N2] = np.dot(W, x).reshape((N1, N2), order='F')
+        v = np.exp(beta * (u - np.max(u, axis=0, keepdims=True)))
+        for k in range(num_sinkh_iter):
+            v /= np.sum(v, axis=0, keepdims=True)
+            v[:, N2] *= max(N1, N2) - N2 + pad + 1.
+            v /= np.sum(v, axis=1, keepdims=True)
+            v[N1, :] *= max(N1, N2) - N1 + pad + 1.
+        x = v[:N1, :N2].reshape((N1 * N2, 1), order='F')
+    return v[:N1, :N2]
+
+
+
+
 def spgm(W, N1, N2, gamma=1., num_iter=100, num_pocs_iter=100, eps=1e-6):
     # Successive Projection Graph Matching
     # van Wyk, van Wyk, "A POCS-Based Graph Matching Algorithm"
