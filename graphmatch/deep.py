@@ -3,6 +3,18 @@ from tensorflow import keras
 import numpy as np
 
 
+def idxtransform(idx, scale=2**5):
+    # Transform coordinates of image points to index feature vectors in high layers
+    # Input: idx: point coordinates of shape [batch size, number of points, 2]
+    #        scale: scaling parameter of feature extractor
+    #               for instance, we use MobileNetV2 which halves input image 5 times, so default scaling parameter is 32
+    # Output: scaled indices with added leading batch number
+    x = idx / scale
+    r = tf.reshape(tf.range(tf.shape(idx)[0]), [-1, 1, 1])
+    r = tf.tile(r, tf.concat([[1], tf.shape(idx)[1:-1], [1]], axis=0))
+    return tf.concat([r, x], axis=-1)
+
+
 def power_iter_factorized(Mp, Mq, G1, H1, G2, H2, max_iter=100, eps_iter=1e-6):
     # Power iteration for affinity matrix
     # Here we take advantage of affinity matrix factorization
