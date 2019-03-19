@@ -1,5 +1,6 @@
 import tensorflow as tf
 from tensorflow import keras
+from tensorflow.keras import backend as K
 import numpy as np
 
 
@@ -74,4 +75,65 @@ def sinkhorn_loop(x, max_iter=100, eps_iter=1e-6):
     i = tf.constant(0)
     d = tf.constant(True)
     return tf.while_loop(cond=cond, body=body, loop_vars=(x, i, d), maximum_iterations=max_iter)[0]
+
+
+class AffinityVertex(keras.layers.Layer):
+    def build(self, input_shape):
+        assert isinstance(input_shape, list)
+        super(AffinityVertex, self).build(input_shape)
+        
+    def call(self, x):
+        assert isinstance(x, list)
+        # Input: U_l, U_r: matrices of vertex features
+        #        of shape [n1, vertex feature vector length] and [n2, VFVL] respectively
+        # Output: Mp = U_l * U_r^T
+        U_l, U_r = x
+        return tf.linalg.matmul(U_l, U_r, transpose_b=True)
+    
+    def compute_output_shape(self, input_shape):
+        assert isinstance(input_shape, list)
+        shape_u1, shape_u2 = input_shape
+        return (shape_u1[0], shape_u2[0])
+    
+    
+class AffinityEdge(keras.layers.Layer):
+    def build(self, input_shape):
+        assert isinstance(input_shape, list)
+        self.w1 = self.add_weight(name='weight1',
+                                  shape=(input_shape[0][-1].value, input_shape[1][-1].value),
+                                  initializer='uniform',
+                                  trainable=True)
+        self.w2 = self.add_weight(name='weight2',
+                                  shape=(input_shape[0][-1].value, input_shape[1][-1].value),
+                                  initializer='uniform',
+                                  trainable=True)
+        # kernel should be block-symmetric matrix with positive elements
+        self.L1 = tf.math.maximum(0., self.w1 + tf.linalg.transpose(self.w1)) / 2.
+        self.L2 = tf.math.maximum(0., self.w2 + tf.linalg.transpose(self.w2)) / 2.
+        super(AffinityEdge, self).build(input_shape)
+        
+    def call(self, x):
+        assert isinstance(x, list)
+        # Input: P_l, P_r: matrices of vertex features
+        #                  of shape [m1, edge feature vector length] and [m2, EFVL] respectively
+        #        G_l, G_r: matrices of edge incidence: G[i, j] = [edge j starts in vertex i]
+        #                  of shape [n1, m1] and [n2, m2] respectively
+        #        H_l, H_r: matrices of edge incidence: H[i, j] = [edge j ends in vertex i]
+        #                  of shape [n1, m1] and [n2, m2] respectively
+        # Output: Mq: matrix of edge affinities
+        P_l, P_r, G_l, G_r, H_l, H_r = x
+        FG_l = tf.linalg.matmul(G_l, P_l, transpose_a=True)
+        FH_l = tf.linalg.matmul(H_l, P_l, transpose_a=True)
+        FG_r = tf.linalg.matmul(G_r, P_r, transpose_a=True)
+        FH_r = tf.linalg.matmul(H_r, P_r, transpose_a=True)
+        # quadratic form with block-symmetric matrix
+        def m(x, l, y):
+            # x * l * y^T
+            # due to broadcasting issues with tf.matmul, we use Keras dot
+            return tf.linalg.matmul(keras.backend.dot(x, l), y, transpose_b=True)
+        return m(FG_l, self.L1, FG_r) + m(FH_l, self.L1, FH_r) + m(FG_l, self.L2, FH_r) + m(FH_l, self.L2, FG_r)
+    
+    def compute_output_shape(self, input_shape):
+        assert isinstance(input_shape, list)
+        return (input_shape[0][0], input_shape[1][0])
 
