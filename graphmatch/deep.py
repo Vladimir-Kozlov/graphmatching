@@ -78,6 +78,7 @@ def sinkhorn_loop(x, max_iter=100, eps_iter=1e-6):
 
 
 class AffinityVertex(keras.layers.Layer):
+    # Layer that calculates vertex affinity matrix from vertex feature vectors
     def build(self, input_shape):
         assert isinstance(input_shape, list)
         super(AffinityVertex, self).build(input_shape)
@@ -97,6 +98,7 @@ class AffinityVertex(keras.layers.Layer):
     
     
 class AffinityEdge(keras.layers.Layer):
+    # Layer that calculates edge affinity matrix from edge feature vectors and incidence matrices
     def build(self, input_shape):
         assert isinstance(input_shape, list)
         self.w1 = self.add_weight(name='weight1',
@@ -108,8 +110,12 @@ class AffinityEdge(keras.layers.Layer):
                                   initializer='uniform',
                                   trainable=True)
         # kernel should be block-symmetric matrix with positive elements
-        self.L1 = tf.math.maximum(0., self.w1 + tf.linalg.transpose(self.w1)) / 2.
-        self.L2 = tf.math.maximum(0., self.w2 + tf.linalg.transpose(self.w2)) / 2.
+        # the less weights to change the better, right?
+        # diagonal elements are calculated twice
+        L1 = tf.linalg.band_part(self.w1, 0, -1)
+        L2 = tf.linalg.band_part(self.w2, 0, -1)
+        self.L1 = tf.math.maximum(0., L1 + tf.linalg.transpose(L1))
+        self.L2 = tf.math.maximum(0., L2 + tf.linalg.transpose(L2))
         super(AffinityEdge, self).build(input_shape)
         
     def call(self, x):
@@ -137,3 +143,43 @@ class AffinityEdge(keras.layers.Layer):
         assert isinstance(input_shape, list)
         return (input_shape[0][0], input_shape[1][0])
 
+
+def deep_graph_matching_model():
+    img1_input = keras.layers.Input(shape=(None, None, 3), dtype='float32')
+    img2_input = keras.layers.Input(shape=(None, None, 3), dtype='float32')
+    idx1_input = keras.layers.Input(shape=(None, 2), dtype='int32')
+    idx2_input = keras.layers.Input(shape=(None, 2), dtype='int32')
+    g1_input = keras.layers.Input(shape=(None, None), dtype='float32')
+    g2_input = keras.layers.Input(shape=(None, None), dtype='float32')
+    h1_input = keras.layers.Input(shape=(None, None), dtype='float32')
+    h2_input = keras.layers.Input(shape=(None, None), dtype='float32')
+
+    mnv2 = keras.applications.mobilenet_v2.MobileNetV2(input_shape=(None, None, 3),
+                                                       alpha=1.,
+                                                       depth_multiplier=1, 
+                                                       include_top=False, 
+                                                       weights='imagenet', 
+                                                       pooling=None)
+    mnv2_1 = mnv2(img1_input)
+    mnv2_2 = mnv2(img1_input)
+
+    idx_vert = keras.layers.Lambda(idxtransform, arguments={'scale': 2**5})
+    idx_edge = keras.layers.Lambda(idxtransform, arguments={'scale': 2**5})
+    idxv_1 = idx_vert(idx1_input)
+    idxe_1 = idx_edge(idx1_input)
+    idxv_2 = idx_vert(idx2_input)
+    idxe_2 = idx_edge(idx2_input)
+
+    fmap_idx = keras.layers.Lambda(lambda x: tf.gather_nd(*x))
+    featv_1 = fmap_idx([mnv2_1, idxv_1])
+    feate_1 = fmap_idx([mnv2_1, idxe_1])
+    featv_2 = fmap_idx([mnv2_2, idxv_2])
+    feate_2 = fmap_idx([mnv2_2, idxe_2])
+
+    # need to reorder arguments either in AffinityEdge call or in power_iter_factorized; the latter is preferrable
+    Mp = AffinityVertex()([featv_1, featv_2])
+    Mq = AffinityEdge()([feate_1, feate_2, g1_input, g2_input, h1_input, h2_input])
+    pi = keras.layers.Lambda(lambda x: power_iter_factorized(*x))([Mp, Mq, g1_input, h1_input, g2_input, h2_input])
+    sl = keras.layers.Lambda(sinkhorn_loop)(pi)
+
+    return keras.models.Model(inputs=[img1_input, idx1_input, g1_input, h1_input, img2_input, idx2_input, g2_input, h2_input], outputs=[sl])
