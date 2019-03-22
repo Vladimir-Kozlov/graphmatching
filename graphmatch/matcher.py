@@ -32,8 +32,7 @@ def smac(W, N1, N2, C=None, d=None, num_iter=100):
 
     # if no constraints are provided, we construct our own (doubly stochastic)
     # in that case, we assume the assignment matrix is square, otherwise no such matrix exist
-    if (C is None) or (d is None):
-        assert N1 == N2
+    if (C is None):
         # C sums over rows and columns of assignment matrix
         # dropping one row ensures that C is full-rank
         C = np.zeros((N1 + N2 - 1, N1 * N2))
@@ -41,7 +40,9 @@ def smac(W, N1, N2, C=None, d=None, num_iter=100):
             C[i, range(i * N1, (i + 1) * N1)] = 1
         for j in range(N1):
             C[range(N2 - 1, N1 + N2 - 1), range(j * N1, (j + 1) * N1)] = 1
+    if (d is None):
         d = np.ones(N1 + N2 - 1)
+
 
     assert C.shape[0] == len(d)
     assert C.shape[1] == h
@@ -59,6 +60,7 @@ def smac(W, N1, N2, C=None, d=None, num_iter=100):
         d[i] = d[-1]
         d[-1] = u
         Ceq = C[:-1, :] - np.expand_dims(d[:-1], axis=1) * C[-1, :] / d[-1]
+
     P = np.eye(N1 * N2) - np.dot(Ceq.T, np.dot(np.linalg.inv(np.dot(Ceq, Ceq.T)), Ceq))
     H = np.dot(P.T, np.dot(W, P))
 
