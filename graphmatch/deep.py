@@ -24,9 +24,9 @@ def sinkhorn_loop(x, max_iter=100, eps_iter=1e-6):
     # Output: doubly stochastic matrix
     def sinkhorn_iter(x):
         u = tf.math.reduce_sum(x, axis=-2, keepdims=True)
-        h = tf.div_no_nan(x, u) #x / tf.math.maximum(u, eps_divzero)
+        h = tf.div_no_nan(x, u)
         v = tf.math.reduce_sum(h, axis=-1, keepdims=True)
-        return tf.div_no_nan(h, v) #h / tf.math.maximum(v, eps_divzero)
+        return tf.div_no_nan(h, v)
     def cond(x, i, d):
         return tf.math.logical_and(i < max_iter, d)
     def body(x, i, d):
@@ -102,7 +102,7 @@ class AffinityEdge(keras.layers.Layer):
         return (input_shape[0][0], input_shape[1][0])
     
     
-def power_iter_factorized(Mp, Mq, G1, H1, G2, H2, max_iter=100, eps_iter=1e-6):
+def power_iter_factorized(Mp, Mq, G1, G2, H1, H2, max_iter=100, eps_iter=1e-6):
     # Power iteration for affinity matrix
     # Here we take advantage of affinity matrix factorization
     # Input: Mp: node affinity matrix of shape [n1, n2]
@@ -142,12 +142,18 @@ def power_iter_factorized(Mp, Mq, G1, H1, G2, H2, max_iter=100, eps_iter=1e-6):
 
 
 class PowerIterationLayer(keras.layers.Layer):
+    def __init__(self, max_iter=100, eps_iter=1e-6, **kwargs):
+        self.max_iter = max_iter
+        self.eps_iter = eps_iter
+        super(PowerIterationLayer, self).__init__(**kwargs)
+    
     def build(self, input_shape):
         assert isinstance(input_shape, list)
         super(PowerIterationLayer, self).build(input_shape)
     
     def call(self, x):
-        pass
+        assert isinstance(x, list)
+        return power_iter_factorized(*x, max_iter=self.max_iter, eps_iter=self.eps_iter)
     
     def compute_output_shape(self, input_shape):
         pass
@@ -188,7 +194,7 @@ def deep_graph_matching_model():
     # need to reorder arguments either in AffinityEdge call or in power_iter_factorized; the latter is preferrable
     Mp = AffinityVertex()([featv_1, featv_2])
     Mq = AffinityEdge()([feate_1, feate_2, g1_input, g2_input, h1_input, h2_input])
-    pi = keras.layers.Lambda(lambda x: power_iter_factorized(*x))([Mp, Mq, g1_input, h1_input, g2_input, h2_input])
+    pi = keras.layers.Lambda(lambda x: power_iter_factorized(*x))([Mp, Mq, g1_input, g2_input, h1_input, h2_input])
     sl = keras.layers.Lambda(sinkhorn_loop)(pi)
 
     return keras.models.Model(inputs=[img1_input, idx1_input, g1_input, h1_input, img2_input, idx2_input, g2_input, h2_input], outputs=[sl])
