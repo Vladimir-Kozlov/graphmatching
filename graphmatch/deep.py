@@ -71,12 +71,9 @@ class AffinityEdge(keras.layers.Layer):
                                   initializer='uniform',
                                   trainable=True)
         # kernel should be block-symmetric matrix with positive elements
-        # the less weights to change the better, right?
-        # diagonal elements are calculated twice
-        L1 = tf.linalg.band_part(self.w1, 0, -1)
-        L2 = tf.linalg.band_part(self.w2, 0, -1)
-        self.L1 = tf.math.maximum(0., L1 + tf.linalg.transpose(L1))
-        self.L2 = tf.math.maximum(0., L2 + tf.linalg.transpose(L2))
+        # this ensures symmetry and the fact that all weights are accessible in backprop
+        self.L1 = self.w1 + tf.linalg.transpose(self.w1)
+        self.L2 = self.w2 + tf.linalg.transpose(self.w2)
         super(AffinityEdge, self).build(input_shape)
         
     def call(self, x):
@@ -146,7 +143,8 @@ def power_iter_factorized(Mp, Mq, G1, H1, G2, H2, max_iter=100, eps_iter=1e-6):
 
 class PowerIterationLayer(keras.layers.Layer):
     def build(self, input_shape):
-        pass
+        assert isinstance(input_shape, list)
+        super(PowerIterationLayer, self).build(input_shape)
     
     def call(self, x):
         pass
