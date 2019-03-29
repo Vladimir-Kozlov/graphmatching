@@ -38,7 +38,7 @@ def sinkhorn_loop(x, max_iter=100, eps_iter=1e-6):
     return tf.while_loop(cond=cond, body=body, loop_vars=(x, i, d), maximum_iterations=max_iter)[0]
 
 
-class AffinityVertex(keras.layers.Layer):
+class VertexAffinityLayer(keras.layers.Layer):
     # Layer that calculates vertex affinity matrix from vertex feature vectors
     def build(self, input_shape):
         assert isinstance(input_shape, list)
@@ -58,18 +58,20 @@ class AffinityVertex(keras.layers.Layer):
         return (shape_u1[0], shape_u2[0])
     
     
-class AffinityEdge(keras.layers.Layer):
+class EdgeAffinityLayer(keras.layers.Layer):
     # Layer that calculates edge affinity matrix from edge feature vectors and incidence matrices
     def build(self, input_shape):
         assert isinstance(input_shape, list)
         self.w1 = self.add_weight(name='weight1',
                                   shape=(input_shape[0][-1].value, input_shape[1][-1].value),
-                                  initializer='uniform',
-                                  trainable=True)
+                                  initializer=keras.initializers.RandomUniform(minval=0., maxval=.5),
+                                  trainable=True,
+                                  constraint=keras.constraints.NonNeg())
         self.w2 = self.add_weight(name='weight2',
                                   shape=(input_shape[0][-1].value, input_shape[1][-1].value),
-                                  initializer='uniform',
-                                  trainable=True)
+                                  initializer=keras.initializers.RandomUniform(minval=0., maxval=.5),
+                                  trainable=True,
+                                  constraint=keras.constraints.NonNeg())
         # kernel should be block-symmetric matrix with positive elements
         # this ensures symmetry and the fact that all weights are accessible in backprop
         self.L1 = self.w1 + tf.linalg.transpose(self.w1)
@@ -78,8 +80,8 @@ class AffinityEdge(keras.layers.Layer):
         
     def call(self, x):
         assert isinstance(x, list)
-        # Input: P_l, P_r: matrices of vertex features
-        #                  of shape [m1, edge feature vector length] and [m2, EFVL] respectively
+        # Input: P_l, P_r: matrices of vertex features (to combine into edge features)
+        #                  of shape [n1, edge feature vector length] and [n2, EFVL] respectively
         #        G_l, G_r: matrices of edge incidence: G[i, j] = [edge j starts in vertex i]
         #                  of shape [n1, m1] and [n2, m2] respectively
         #        H_l, H_r: matrices of edge incidence: H[i, j] = [edge j ends in vertex i]
@@ -93,8 +95,7 @@ class AffinityEdge(keras.layers.Layer):
         # quadratic form with block-symmetric matrix
         def m(x, l, y):
             # x * l * y^T
-            # due to broadcasting issues with tf.matmul, we use Keras dot
-            return tf.linalg.matmul(keras.backend.dot(x, l), y, transpose_b=True)
+            return tf.linalg.matmul(tf.tensordot(x, l, axes=1), y, transpose_b=True)
         return m(FG_l, self.L1, FG_r) + m(FH_l, self.L1, FH_r) + m(FG_l, self.L2, FH_r) + m(FH_l, self.L2, FG_r)
     
     def compute_output_shape(self, input_shape):
@@ -194,9 +195,9 @@ def deep_graph_matching_model():
     feate_2 = fmap_idx([mnv2_2, idxe_2])
 
     # need to reorder arguments either in AffinityEdge call or in power_iter_factorized; the latter is preferrable
-    Mp = AffinityVertex()([featv_1, featv_2])
-    Mq = AffinityEdge()([feate_1, feate_2, g1_input, g2_input, h1_input, h2_input])
-    pi = keras.layers.Lambda(lambda x: power_iter_factorized(*x))([Mp, Mq, g1_input, g2_input, h1_input, h2_input])
+    Mp = VertexAffinityLayer()([featv_1, featv_2])
+    Mq = EdgeAffinityLayer()([feate_1, feate_2, g1_input, g2_input, h1_input, h2_input])
+    pi = PowerIterationLayer()([Mp, Mq, g1_input, g2_input, h1_input, h2_input])
     sl = keras.layers.Lambda(sinkhorn_loop)(pi)
 
     return keras.models.Model(inputs=[img1_input, idx1_input, g1_input, h1_input, img2_input, idx2_input, g2_input, h2_input], outputs=[sl])
