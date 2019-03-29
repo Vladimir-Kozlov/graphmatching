@@ -156,7 +156,9 @@ class PowerIterationLayer(keras.layers.Layer):
         return power_iter_factorized(*x, max_iter=self.max_iter, eps_iter=self.eps_iter)
     
     def compute_output_shape(self, input_shape):
-        pass
+        # output shape is the same as Mp
+        assert isinstance(input_shape, list)
+        return (input_shape[0][0], input_shape[0][1])
 
 
 def deep_graph_matching_model():
