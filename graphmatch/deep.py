@@ -49,7 +49,8 @@ class VertexAffinityLayer(keras.layers.Layer):
         # Input: U_l, U_r: matrices of vertex features
         #        of shape [n1, vertex feature vector length] and [n2, VFVL] respectively
         # Output: Mp = U_l * U_r^T
-        U_l, U_r = x
+        U_l = tf.math.l2_normalize(x[0], axis=-1)
+        U_r = tf.math.l2_normalize(x[1], axis=-1)
         return tf.linalg.matmul(U_l, U_r, transpose_b=True)
     
     def compute_output_shape(self, input_shape):
@@ -87,7 +88,9 @@ class EdgeAffinityLayer(keras.layers.Layer):
         #        H_l, H_r: matrices of edge incidence: H[i, j] = [edge j ends in vertex i]
         #                  of shape [n1, m1] and [n2, m2] respectively
         # Output: Mq: matrix of edge affinities
-        P_l, P_r, G_l, G_r, H_l, H_r = x
+        _, _, G_l, G_r, H_l, H_r = x
+        P_l = tf.math.l2_normalize(x[0], axis=-1)
+        P_r = tf.math.l2_normalize(x[1], axis=-1)
         FG_l = tf.linalg.matmul(G_l, P_l, transpose_a=True)
         FH_l = tf.linalg.matmul(H_l, P_l, transpose_a=True)
         FG_r = tf.linalg.matmul(G_r, P_r, transpose_a=True)
@@ -194,9 +197,9 @@ def deep_graph_matching_model():
     featv_2 = fmap_idx([mnv2_2, idxv_2])
     feate_2 = fmap_idx([mnv2_2, idxe_2])
 
-    # need to reorder arguments either in AffinityEdge call or in power_iter_factorized; the latter is preferrable
-    Mp = VertexAffinityLayer()([featv_1, featv_2])
-    Mq = EdgeAffinityLayer()([feate_1, feate_2, g1_input, g2_input, h1_input, h2_input])
+    # ReLU added in order to produce nonnegative affinity
+    Mp = keras.layers.ReLU()(VertexAffinityLayer()([featv_1, featv_2]))
+    Mq = keras.layers.ReLU()(EdgeAffinityLayer()([feate_1, feate_2, g1_input, g2_input, h1_input, h2_input]))
     pi = PowerIterationLayer()([Mp, Mq, g1_input, g2_input, h1_input, h2_input])
     sl = keras.layers.Lambda(sinkhorn_loop)(pi)
 
