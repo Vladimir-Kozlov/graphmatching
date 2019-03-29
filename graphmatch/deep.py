@@ -16,28 +16,6 @@ def idxtransform(idx, scale=2**5):
     return tf.concat([r, x], axis=-1)
 
 
-def sinkhorn_loop(x, max_iter=100, eps_iter=1e-6):
-    # Sinkhorn-Knopp algorithm for transforming matrix with nonnegative elements into doubly stochastic one
-    # Input: x: matrix to be processed
-    #        max_iter: maximum number of iterations in a loop
-    #        eps_iter: acceptable precision, looping stops when change is less than eps_iter
-    # Output: doubly stochastic matrix
-    def sinkhorn_iter(x):
-        u = tf.math.reduce_sum(x, axis=-2, keepdims=True)
-        h = tf.div_no_nan(x, u)
-        v = tf.math.reduce_sum(h, axis=-1, keepdims=True)
-        return tf.div_no_nan(h, v)
-    def cond(x, i, d):
-        return tf.math.logical_and(i < max_iter, d)
-    def body(x, i, d):
-        y = sinkhorn_iter(x)
-        return y, i + 1, tf.math.reduce_any(tf.linalg.norm(y - x, axis=(-2, -1)) >= eps_iter)
-    
-    i = tf.constant(0)
-    d = tf.constant(True)
-    return tf.while_loop(cond=cond, body=body, loop_vars=(x, i, d), maximum_iterations=max_iter)[0]
-
-
 class VertexAffinityLayer(keras.layers.Layer):
     # Layer that calculates vertex affinity matrix from vertex feature vectors
     def build(self, input_shape):
@@ -163,6 +141,45 @@ class PowerIterationLayer(keras.layers.Layer):
         # output shape is the same as Mp
         assert isinstance(input_shape, list)
         return (input_shape[0][0], input_shape[0][1])
+    
+    
+def sinkhorn_loop(x, max_iter=100, eps_iter=1e-6):
+    # Sinkhorn-Knopp algorithm for transforming matrix with nonnegative elements into doubly stochastic one
+    # Input: x: matrix to be processed
+    #        max_iter: maximum number of iterations in a loop
+    #        eps_iter: acceptable precision, looping stops when change is less than eps_iter
+    # Output: doubly stochastic matrix
+    def sinkhorn_iter(x):
+        u = tf.math.reduce_sum(x, axis=-2, keepdims=True)
+        h = tf.div_no_nan(x, u)
+        v = tf.math.reduce_sum(h, axis=-1, keepdims=True)
+        return tf.div_no_nan(h, v)
+    def cond(x, i, d):
+        return tf.math.logical_and(i < max_iter, d)
+    def body(x, i, d):
+        y = sinkhorn_iter(x)
+        return y, i + 1, tf.math.reduce_any(tf.linalg.norm(y - x, axis=(-2, -1)) >= eps_iter)
+    
+    i = tf.constant(0)
+    d = tf.constant(True)
+    return tf.while_loop(cond=cond, body=body, loop_vars=(x, i, d), maximum_iterations=max_iter)[0]
+
+
+class SinkhornIterationLayer(keras.layers.Layer):
+    def __init__(self, max_iter=100, eps_iter=1e-6, **kwargs):
+        self.max_iter = max_iter
+        self.eps_iter = eps_iter
+        super(SinkhornIterationLayer, self).__init__(**kwargs)
+    
+    def build(self, input_shape):
+        super(SinkhornIterationLayer, self).build(input_shape)
+    
+    def call(self, x):
+        return sinkhorn_loop(x, max_iter=self.max_iter, eps_iter=self.eps_iter)
+    
+    def compute_output_shape(self, input_shape):
+        # does not change shape of input
+        return input_shape
 
 
 def deep_graph_matching_model():
@@ -201,6 +218,6 @@ def deep_graph_matching_model():
     Mp = keras.layers.ReLU()(VertexAffinityLayer()([featv_1, featv_2]))
     Mq = keras.layers.ReLU()(EdgeAffinityLayer()([feate_1, feate_2, g1_input, g2_input, h1_input, h2_input]))
     pi = PowerIterationLayer()([Mp, Mq, g1_input, g2_input, h1_input, h2_input])
-    sl = keras.layers.Lambda(sinkhorn_loop)(pi)
+    sl = SinkhornIterationLayer()(pi)
 
     return keras.models.Model(inputs=[img1_input, idx1_input, g1_input, h1_input, img2_input, idx2_input, g2_input, h2_input], outputs=[sl])
