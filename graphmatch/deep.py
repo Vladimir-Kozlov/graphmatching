@@ -20,7 +20,7 @@ class VertexAffinityLayer(keras.layers.Layer):
     # Layer that calculates vertex affinity matrix from vertex feature vectors
     def build(self, input_shape):
         assert isinstance(input_shape, list)
-        super(AffinityVertex, self).build(input_shape)
+        super(VertexAffinityLayer, self).build(input_shape)
         
     def call(self, x):
         assert isinstance(x, list)
@@ -55,7 +55,7 @@ class EdgeAffinityLayer(keras.layers.Layer):
         # this ensures symmetry and the fact that all weights are accessible in backprop
         self.L1 = self.w1 + tf.linalg.transpose(self.w1)
         self.L2 = self.w2 + tf.linalg.transpose(self.w2)
-        super(AffinityEdge, self).build(input_shape)
+        super(EdgeAffinityLayer, self).build(input_shape)
         
     def call(self, x):
         assert isinstance(x, list)
