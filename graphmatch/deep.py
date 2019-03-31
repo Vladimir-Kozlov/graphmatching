@@ -39,6 +39,10 @@ class VertexAffinityLayer(keras.layers.Layer):
     
 class EdgeAffinityLayer(keras.layers.Layer):
     # Layer that calculates edge affinity matrix from edge feature vectors and incidence matrices
+    def __init__(self, eps=1e-6, **kwargs):
+        self.eps = eps
+        super(EdgeAffinityLayer, self).__init__(**kwargs)
+
     def build(self, input_shape):
         assert isinstance(input_shape, list)
         self.w1 = self.add_weight(name='weight1',
@@ -52,9 +56,9 @@ class EdgeAffinityLayer(keras.layers.Layer):
                                   trainable=True,
                                   constraint=keras.constraints.NonNeg())
         # kernel should be block-symmetric matrix with positive elements
-        # this ensures symmetry and the fact that all weights are accessible in backprop
-        self.L1 = self.w1 + tf.linalg.transpose(self.w1)
-        self.L2 = self.w2 + tf.linalg.transpose(self.w2)
+        # zero weights are bad since they cannot be changed by backprop
+        self.L1 = tf.maximum(self.w1 + tf.linalg.transpose(self.w1), self.eps)
+        self.L2 = tf.maximum(self.w2 + tf.linalg.transpose(self.w2), self.eps)
         super(EdgeAffinityLayer, self).build(input_shape)
         
     def call(self, x):
@@ -198,11 +202,13 @@ def deep_graph_matching_model():
                                                        include_top=False, 
                                                        weights='imagenet', 
                                                        pooling=None)
+    mnv2 = keras.models.Model(inputs=mnv2.input,
+                              outputs=mnv2.get_layer('block_6_expand_relu').output)
     mnv2_1 = mnv2(img1_input)
     mnv2_2 = mnv2(img1_input)
 
-    idx_vert = keras.layers.Lambda(idxtransform, arguments={'scale': 2**5})
-    idx_edge = keras.layers.Lambda(idxtransform, arguments={'scale': 2**5})
+    idx_vert = keras.layers.Lambda(idxtransform, arguments={'scale': 2**3})
+    idx_edge = keras.layers.Lambda(idxtransform, arguments={'scale': 2**3})
     idxv_1 = idx_vert(idx1_input)
     idxe_1 = idx_edge(idx1_input)
     idxv_2 = idx_vert(idx2_input)
