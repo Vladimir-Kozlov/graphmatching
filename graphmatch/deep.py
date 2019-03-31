@@ -48,15 +48,13 @@ class EdgeAffinityLayer(keras.layers.Layer):
         self.w1 = self.add_weight(name='weight1',
                                   shape=(input_shape[0][-1].value, input_shape[1][-1].value),
                                   initializer=keras.initializers.RandomUniform(minval=0., maxval=.5),
-                                  trainable=True,
-                                  constraint=keras.constraints.NonNeg())
+                                  trainable=True)
         self.w2 = self.add_weight(name='weight2',
                                   shape=(input_shape[0][-1].value, input_shape[1][-1].value),
                                   initializer=keras.initializers.RandomUniform(minval=0., maxval=.5),
-                                  trainable=True,
-                                  constraint=keras.constraints.NonNeg())
+                                  trainable=True)
         # kernel should be block-symmetric matrix with positive elements
-        # zero weights are bad since they cannot be changed by backprop
+        # this ensures symmetry strict positivity
         self.L1 = tf.maximum(self.w1 + tf.linalg.transpose(self.w1), self.eps)
         self.L2 = tf.maximum(self.w2 + tf.linalg.transpose(self.w2), self.eps)
         super(EdgeAffinityLayer, self).build(input_shape)
@@ -202,13 +200,11 @@ def deep_graph_matching_model():
                                                        include_top=False, 
                                                        weights='imagenet', 
                                                        pooling=None)
-    mnv2 = keras.models.Model(inputs=mnv2.input,
-                              outputs=mnv2.get_layer('block_6_expand_relu').output)
     mnv2_1 = mnv2(img1_input)
     mnv2_2 = mnv2(img1_input)
 
-    idx_vert = keras.layers.Lambda(idxtransform, arguments={'scale': 2**3})
-    idx_edge = keras.layers.Lambda(idxtransform, arguments={'scale': 2**3})
+    idx_vert = keras.layers.Lambda(idxtransform, arguments={'scale': 2**5})
+    idx_edge = keras.layers.Lambda(idxtransform, arguments={'scale': 2**5})
     idxv_1 = idx_vert(idx1_input)
     idxe_1 = idx_edge(idx1_input)
     idxv_2 = idx_vert(idx2_input)
