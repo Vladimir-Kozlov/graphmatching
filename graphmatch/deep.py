@@ -122,7 +122,7 @@ def power_iter_factorized(Mp, Mq, G1, G2, H1, H2, max_iter=100, eps_iter=1e-6):
     i = tf.constant(0)
     d = tf.constant(True)
     v = tf.ones(tf.shape(Mp))
-    return tf.while_loop(cond=cond, body=body, loop_vars=(v, i, d), maximum_iterations=max_iter)[0]
+    return tf.while_loop(cond=cond, body=body, loop_vars=(v, i, d), maximum_iterations=max_iter, swap_memory=True)[0]
 
 
 class PowerIterationLayer(keras.layers.Layer):
@@ -164,7 +164,7 @@ def sinkhorn_loop(x, max_iter=100, eps_iter=1e-6):
     
     i = tf.constant(0)
     d = tf.constant(True)
-    return tf.while_loop(cond=cond, body=body, loop_vars=(x, i, d), maximum_iterations=max_iter)[0]
+    return tf.while_loop(cond=cond, body=body, loop_vars=(x, i, d), maximum_iterations=max_iter, swap_memory=True)[0]
 
 
 class SinkhornIterationLayer(keras.layers.Layer):
@@ -200,11 +200,13 @@ def deep_graph_matching_model():
                                                        include_top=False, 
                                                        weights='imagenet', 
                                                        pooling=None)
+    mnv2 = keras.models.Model(inputs=mnv2.input,
+                              outputs=mnv2.get_layer('block_6_expand_relu').output)
     mnv2_1 = mnv2(img1_input)
     mnv2_2 = mnv2(img1_input)
 
-    idx_vert = keras.layers.Lambda(idxtransform, arguments={'scale': 2**5})
-    idx_edge = keras.layers.Lambda(idxtransform, arguments={'scale': 2**5})
+    idx_vert = keras.layers.Lambda(idxtransform, arguments={'scale': 2**3})
+    idx_edge = keras.layers.Lambda(idxtransform, arguments={'scale': 2**3})
     idxv_1 = idx_vert(idx1_input)
     idxe_1 = idx_edge(idx1_input)
     idxv_2 = idx_vert(idx2_input)
