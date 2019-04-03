@@ -20,6 +20,21 @@ def idxtransform(idx, scale=2**5):
     return tf.concat([r, x], axis=-1)
 
 
+class IndexTransformationLayer(keras.layers.Layer):
+    def __init__(self, scale=2**5, **kwargs):
+        self.scale = scale
+        super(IndexTransformationLayer, self).__init__(**kwargs)
+
+    def build(self, input_shape):
+        super(IndexTransformationLayer, self).build(input_shape)
+
+    def call(self, x):
+        return idxtransform(x, scale=self.scale)
+
+    def compute_output_shape(self, input_shape):
+        return input_shape[:-1] + [3]
+
+
 class VertexAffinityLayer(keras.layers.Layer):
     # Layer that calculates vertex affinity matrix from vertex feature vectors
     def build(self, input_shape):
