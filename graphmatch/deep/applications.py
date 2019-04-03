@@ -8,20 +8,38 @@ def ZanSmi_feat_maps(**kwargs):
     img2 = keras.layers.Input(shape=(None, None, 3), name='image_2_input', tensor=kwargs.get('img2'))
     vgg = keras.applications.vgg16.VGG16(input_shape=(None, None, 3), weights='imagenet',
     	                                 include_top=False, pooling='None')
+
     v = keras.models.Model(inputs=vgg.input, 
     	                   outputs=vgg.get_layer('block4_conv2').output)
     e = keras.models.Model(inputs=vgg.input, 
     	                   outputs=vgg.get_layer('block5_conv1').output)
+
     feat_map_vertex_1 = v(img1)
     feat_map_vertex_2 = v(img2)
     feat_map_edge_1 = e(img1)
     feat_map_edge_2 = e(img2)
+
     return keras.models.Model(inputs=[img1, img2],
                               outputs=[feat_map_vertex_1, feat_map_vertex_2,
                                        feat_map_edge_1, feat_map_edge_2])
 
 
+def ZanSmi_feat_extract(**kwargs):
+	idx1 = keras.layers.Input(shape=(None, 2), dtype='int32', tensor=kwargs.get('idx1'),
+	                          name='keypoints_positions_img1_input')
+    idx2 = keras.layers.Input(shape=(None, 2), dtype='int32', tensor=kwargs.get('idx2'),
+	                          name='keypoints_positions_img2_input')
 
+    v = layers.IndexTransformationLayer(scale=(8, 8))
+    e = layers.IndexTransformationLayer(scale=(16, 16))
+
+    vertex_idx_1 = v(idx1)
+    vertex_idx_2 = v(idx2)
+    edge_idx_1 = e(idx1)
+    edge_idx_2 = e(idx2)
+
+    return keras.models.Model(name='idx_transformation_model', inputs=[idx1, idx2],
+                              outputs=[vertex_idx_1, vertex_idx_2, edge_idx_1, edge_idx_2])
 
 
 
