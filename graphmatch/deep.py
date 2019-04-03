@@ -112,7 +112,7 @@ def power_iter_factorized(Mp, Mq, G1, G2, H1, H2, max_iter=100, eps_iter=1e-6):
     def power_iter(v):
         z = (mtr(v, G1, H1, G2, H2) + mtr(v, H1, G1, H2, G2)) / 2.
         t = z + Mp * v
-        return t / tf.linalg.norm(t, axis=(-2, -1), keepdims=True)
+        return tf.math.l2_normalize(t, axis=[-2, -1])
     def cond(v, i, d):
         return tf.math.logical_and(i < max_iter, d)
     def body(v, i, d):
