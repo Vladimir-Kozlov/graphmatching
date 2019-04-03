@@ -21,7 +21,8 @@ def ZanSmi_feat_maps(**kwargs):
 
     return keras.models.Model(inputs=[img1, img2],
                               outputs=[feat_map_vertex_1, feat_map_vertex_2,
-                                       feat_map_edge_1, feat_map_edge_2])
+                                       feat_map_edge_1, feat_map_edge_2],
+                              name='feature_map_model')
 
 
 def ZanSmi_transform_index(**kwargs):
@@ -42,7 +43,7 @@ def ZanSmi_feat_extract(**kwargs):
     idx = keras.layers.Input(shape=(None, 3), name='keypoint_position_processed', tensor=kwargs.get('keypoint_position_processed'))
     # alright, even I'm not autistic enough to make a new layer for this
     fmap_idx = keras.layers.Lambda(lambda x: tf.gather_nd(*x))([fmap, idx])
-    return keras.models.Model(inputs=[fmap, idx], outputs=fmap_idx)
+    return keras.models.Model(inputs=[fmap, idx], outputs=fmap_idx, name='feat_extraction_model')
 
 
 def ZanSmi_aff_vertex(**kwargs):
@@ -55,7 +56,7 @@ def ZanSmi_aff_vertex(**kwargs):
 
     # ReLU added in order to produce nonnegative affinity
     Mp = keras.layers.ReLU()(layers.VertexAffinityLayer()([vertexfeat1, vertexfeat2]))
-    return keras.models.Model(inputs=[vertexfeat1, vertexfeat2], outputs=Mp)
+    return keras.models.Model(inputs=[vertexfeat1, vertexfeat2], outputs=Mp, name='vertex_affinity_model')
 
 
 def ZanSmi_aff_edge(**kwargs):
@@ -80,7 +81,7 @@ def ZanSmi_aff_edge(**kwargs):
 
     # ReLU added in order to produce nonnegative affinity
     Mq = keras.layers.ReLU()(layers.EdgeAffinityLayer()([edgefeat1, edgefeat2, G1, G2, H1, H2]))
-    return keras.models.Model(inputs=[edgefeat1, edgefeat2, G1, G2, H1, H2], outputs=Mq)
+    return keras.models.Model(inputs=[edgefeat1, edgefeat2, G1, G2, H1, H2], outputs=Mq, name='edge_affinity_model')
 
 
 def ZanSmi_match(**kwargs):
@@ -109,7 +110,7 @@ def ZanSmi_match(**kwargs):
     sinkhorn_eps_iter = kwargs.get('sinkhorn_eps_iter', 1e-6)
     sl = layers.SinkhornIterationLayer(max_iter=sinkhorn_max_iter, eps_iter=sinkhorn_eps_iter,
                                        name='sinkhorn_iteration_layer')(pi)
-    return keras.models.Model(inputs=[Mp, Mq, G1, G2, H1, H2], outputs=sl)
+    return keras.models.Model(inputs=[Mp, Mq, G1, G2, H1, H2], outputs=sl, name='match_model')
 
 
 
