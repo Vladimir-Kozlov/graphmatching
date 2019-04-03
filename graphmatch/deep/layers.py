@@ -1,6 +1,5 @@
 import tensorflow as tf
 from tensorflow import keras
-from tensorflow.keras import backend as K
 import numpy as np
 
 
@@ -183,45 +182,3 @@ class SinkhornIterationLayer(keras.layers.Layer):
         # does not change shape of input
         return input_shape
 
-
-def deep_graph_matching_model():
-    img1_input = keras.layers.Input(shape=(None, None, 3), dtype='float32')
-    img2_input = keras.layers.Input(shape=(None, None, 3), dtype='float32')
-    idx1_input = keras.layers.Input(shape=(None, 2), dtype='int32')
-    idx2_input = keras.layers.Input(shape=(None, 2), dtype='int32')
-    g1_input = keras.layers.Input(shape=(None, None), dtype='float32')
-    g2_input = keras.layers.Input(shape=(None, None), dtype='float32')
-    h1_input = keras.layers.Input(shape=(None, None), dtype='float32')
-    h2_input = keras.layers.Input(shape=(None, None), dtype='float32')
-
-    mnv2 = keras.applications.mobilenet_v2.MobileNetV2(input_shape=(None, None, 3),
-                                                       alpha=1.,
-                                                       depth_multiplier=1, 
-                                                       include_top=False, 
-                                                       weights='imagenet', 
-                                                       pooling=None)
-    mnv2 = keras.models.Model(inputs=mnv2.input,
-                              outputs=mnv2.get_layer('block_6_expand_relu').output)
-    mnv2_1 = mnv2(img1_input)
-    mnv2_2 = mnv2(img1_input)
-
-    idx_vert = keras.layers.Lambda(idxtransform, arguments={'scale': 2**3})
-    idx_edge = keras.layers.Lambda(idxtransform, arguments={'scale': 2**3})
-    idxv_1 = idx_vert(idx1_input)
-    idxe_1 = idx_edge(idx1_input)
-    idxv_2 = idx_vert(idx2_input)
-    idxe_2 = idx_edge(idx2_input)
-
-    fmap_idx = keras.layers.Lambda(lambda x: tf.gather_nd(*x))
-    featv_1 = fmap_idx([mnv2_1, idxv_1])
-    feate_1 = fmap_idx([mnv2_1, idxe_1])
-    featv_2 = fmap_idx([mnv2_2, idxv_2])
-    feate_2 = fmap_idx([mnv2_2, idxe_2])
-
-    # ReLU added in order to produce nonnegative affinity
-    Mp = keras.layers.ReLU()(VertexAffinityLayer()([featv_1, featv_2]))
-    Mq = keras.layers.ReLU()(EdgeAffinityLayer()([feate_1, feate_2, g1_input, g2_input, h1_input, h2_input]))
-    pi = PowerIterationLayer()([Mp, Mq, g1_input, g2_input, h1_input, h2_input])
-    sl = SinkhornIterationLayer()(pi)
-
-    return keras.models.Model(inputs=[img1_input, idx1_input, g1_input, h1_input, img2_input, idx2_input, g2_input, h2_input], outputs=[sl])
