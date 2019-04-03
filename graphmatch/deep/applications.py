@@ -24,24 +24,25 @@ def ZanSmi_feat_maps(**kwargs):
                                        feat_map_edge_1, feat_map_edge_2])
 
 
-def ZanSmi_feat_extract(**kwargs):
-    idx1 = keras.layers.Input(shape=(None, 2), dtype='int32', tensor=kwargs.get('idx1'),
-                              name='keypoints_positions_img1_input')
-    idx2 = keras.layers.Input(shape=(None, 2), dtype='int32', tensor=kwargs.get('idx2'),
-                              name='keypoints_positions_img2_input')
+def ZanSmi_transform_index(**kwargs):
+    idx = keras.layers.Input(shape=(None, 2), dtype='int32', tensor=kwargs.get('keypoint_position'),
+                             name='keypoints_coordinates_input')
 
     v = layers.IndexTransformationLayer(scale=(8, 8))
     e = layers.IndexTransformationLayer(scale=(16, 16))
 
-    vertex_idx_1 = v(idx1)
-    vertex_idx_2 = v(idx2)
-    edge_idx_1 = e(idx1)
-    edge_idx_2 = e(idx2)
+    vertex_idx = v(idx)
+    edge_idx = e(idx)
 
-    return keras.models.Model(name='idx_transformation_model', inputs=[idx1, idx2], 
-                              outputs=[vertex_idx_1, vertex_idx_2, edge_idx_1, edge_idx_2])
+    return keras.models.Model(inputs=idx, outputs=[vertex_idx, edge_idx], name='idx_transformation_model')
 
 
+def ZanSmi_feat_extract(**kwargs):
+    fmap = keras.layers.Input(shape=(None, None, None), name='feature_map', tensor=kwargs.get('feature_map'))
+    idx = keras.layers.Input(shape=(None, 3), name='keypoint_position_processed', tensor=kwargs.get('keypoint_position_processed'))
+    # alright, even I'm not autistic enough to make a new layer for this
+    fmap_idx = keras.layers.Lambda(lambda x: tf.gather_nd(*x))([fmap, idx])
+    return keras.models.Model(inputs=[fmap, idx], outputs=fmap_idx)
 
 
 def ZanSmi_aff_vertex(**kwargs):
@@ -109,6 +110,9 @@ def ZanSmi_match(**kwargs):
     sl = layers.SinkhornIterationLayer(max_iter=sinkhorn_max_iter, eps_iter=sinkhorn_eps_iter,
                                        name='sinkhorn_iteration_layer')(pi)
     return keras.models.Model(inputs=[Mp, Mq, G1, G2, H1, H2], outputs=sl)
+
+
+
 
 
 
