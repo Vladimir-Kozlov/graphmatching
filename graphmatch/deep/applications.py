@@ -4,8 +4,8 @@ import layers
 
 
 def ZanSmi_feat_maps(**kwargs):
-    img1 = keras.layers.Input(shape=(None, None, 3), name='image_1_input', tensor=kwargs.get('img1'))
-    img2 = keras.layers.Input(shape=(None, None, 3), name='image_2_input', tensor=kwargs.get('img2'))
+    img1 = keras.layers.Input(shape=(None, None, 3), name='image_input', tensor=kwargs.get('img'))
+
     vgg = keras.applications.vgg16.VGG16(input_shape=(None, None, 3), weights='imagenet',
                                          include_top=False, pooling='None')
 
@@ -14,15 +14,10 @@ def ZanSmi_feat_maps(**kwargs):
     e = keras.models.Model(inputs=vgg.input, 
                            outputs=vgg.get_layer('block5_conv1').output)
 
-    feat_map_vertex_1 = v(img1)
-    feat_map_vertex_2 = v(img2)
-    feat_map_edge_1 = e(img1)
-    feat_map_edge_2 = e(img2)
+    feat_map_vertex = v(img)
+    feat_map_edge = e(img)
 
-    return keras.models.Model(inputs=[img1, img2],
-                              outputs=[feat_map_vertex_1, feat_map_vertex_2,
-                                       feat_map_edge_1, feat_map_edge_2],
-                              name='feature_map_model')
+    return keras.models.Model(inputs=img, outputs=[feat_map_vertex, feat_map_edge], name='feature_map_model')
 
 
 def ZanSmi_transform_index(**kwargs):
