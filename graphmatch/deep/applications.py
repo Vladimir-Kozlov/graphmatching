@@ -4,7 +4,7 @@ import layers
 
 
 def ZanSmi_feat_maps(**kwargs):
-    img1 = keras.layers.Input(shape=(None, None, 3), name='image_input', tensor=kwargs.get('img'))
+    img = keras.layers.Input(shape=(None, None, 3), name='image_input', tensor=kwargs.get('img'))
 
     vgg = keras.applications.vgg16.VGG16(input_shape=(None, None, 3), weights='imagenet',
                                          include_top=False, pooling='None')
@@ -17,7 +17,7 @@ def ZanSmi_feat_maps(**kwargs):
     feat_map_vertex = v(img)
     feat_map_edge = e(img)
 
-    return keras.models.Model(inputs=img, outputs=[feat_map_vertex, feat_map_edge], name='feature_map_model')
+    return keras.models.Model(inputs=img, outputs=[feat_map_vertex, feat_map_edge])
 
 
 def ZanSmi_transform_index(**kwargs):
@@ -30,15 +30,16 @@ def ZanSmi_transform_index(**kwargs):
     vertex_idx = v(idx)
     edge_idx = e(idx)
 
-    return keras.models.Model(inputs=idx, outputs=[vertex_idx, edge_idx], name='idx_transformation_model')
+    return keras.models.Model(inputs=idx, outputs=[vertex_idx, edge_idx])
 
 
 def ZanSmi_feat_extract(**kwargs):
     fmap = keras.layers.Input(shape=(None, None, None), name='feature_map', tensor=kwargs.get('feature_map'))
-    idx = keras.layers.Input(shape=(None, 3), name='keypoint_position_processed', tensor=kwargs.get('keypoint_position_processed'))
+    idx = keras.layers.Input(shape=(None, 3), dtype='int32', name='keypoint_position_processed',
+                             tensor=kwargs.get('keypoint_position_processed'))
     # alright, even I'm not autistic enough to make a new layer for this
     fmap_idx = keras.layers.Lambda(lambda x: tf.gather_nd(*x))([fmap, idx])
-    return keras.models.Model(inputs=[fmap, idx], outputs=fmap_idx, name='feat_extraction_model')
+    return keras.models.Model(inputs=[fmap, idx], outputs=fmap_idx)
 
 
 def ZanSmi_aff_vertex(**kwargs):
@@ -51,7 +52,7 @@ def ZanSmi_aff_vertex(**kwargs):
 
     # ReLU added in order to produce nonnegative affinity
     Mp = keras.layers.ReLU()(layers.VertexAffinityLayer()([vertexfeat1, vertexfeat2]))
-    return keras.models.Model(inputs=[vertexfeat1, vertexfeat2], outputs=Mp, name='vertex_affinity_model')
+    return keras.models.Model(inputs=[vertexfeat1, vertexfeat2], outputs=Mp)
 
 
 def ZanSmi_aff_edge(**kwargs):
@@ -76,7 +77,7 @@ def ZanSmi_aff_edge(**kwargs):
 
     # ReLU added in order to produce nonnegative affinity
     Mq = keras.layers.ReLU()(layers.EdgeAffinityLayer()([edgefeat1, edgefeat2, G1, G2, H1, H2]))
-    return keras.models.Model(inputs=[edgefeat1, edgefeat2, G1, G2, H1, H2], outputs=Mq, name='edge_affinity_model')
+    return keras.models.Model(inputs=[edgefeat1, edgefeat2, G1, G2, H1, H2], outputs=Mq)
 
 
 def ZanSmi_match(**kwargs):
@@ -111,34 +112,56 @@ def ZanSmi_match(**kwargs):
 def ZanSmi_full_model(**kwargs):
     img1 = keras.layers.Input(shape=(None, None, 3), name='image_1_input', tensor=kwargs.get('img1'))
     img2 = keras.layers.Input(shape=(None, None, 3), name='image_2_input', tensor=kwargs.get('img2'))
-    m = ZanSmi_feat_maps()
-    fmv1, fme1 = m(img1)
-    fmv2, fme2 = m(img2)
+    m1 = ZanSmi_feat_maps()
+    fmv1, fme1 = m1(img1)
+    fmv2, fme2 = m1(img2)
+
+    mm1 = keras.models.Model(inputs=[img1, img2], outputs=[fmv1, fmv2, fme1, fme2])
 
     idx1 = keras.layers.Input(shape=(None, 2), dtype='int32', tensor=kwargs.get('keypoint1'),
                               name='keypoints_coordinates_image_1_input')
     idx2 = keras.layers.Input(shape=(None, 2), dtype='int32', tensor=kwargs.get('keypoint2'),
                               name='keypoints_coordinates_image_2_input')
-    m = ZanSmi_transform_index()
-    idxv1, idxe1 = m(idx1)
-    idxv2, idxe2 = m(idx2)
+    m2 = ZanSmi_transform_index()
+    idxv1, idxe1 = m2(idx1)
+    idxv2, idxe2 = m2(idx2)
 
-    m = ZanSmi_feat_extract()
-    featv1 = m([fmv1, idxv1])
-    feate1 = m([fme1, idxe1])
-    featv2 = m([fmv2, idxv2])
-    feate2 = m([fme2, idxe2])
+    mm2 = keras.models.Model(inputs=[idx1, idx2], outputs=[idxv1, idxv2, idxe1, idxe2])
 
-    Mp = ZanSmi_aff_vertex(vertex_feat_1=featv1, vertex_feat_2=featv2).output
+    m3 = ZanSmi_feat_extract()
+    featv1 = m3([fmv1, idxv1])
+    feate1 = m3([fme1, idxe1])
+    featv2 = m3([fmv2, idxv2])
+    feate2 = m3([fme2, idxe2])
+
+    mm3 = keras.models.Model(inputs=[img1, img2, idx1, idx2],
+                             outputs=[featv1, featv2, feate1, feate2])
+                             #outputs=[m3([x, y]) for (x, y) in zip(mm1.output, mm2.output)])
+
+    m4 = ZanSmi_aff_vertex()
+
+    z = mm3([img1, img2, idx1, idx2])
+    
+    Mp = m4([z[0], z[1]])
+    mm4 = keras.models.Model(inputs=[img1, idx1, img2, idx2], outputs=Mp)
 
     G1 = keras.layers.Input(shape=(None, None), name='incidence_matrix_g1_input', tensor=kwargs.get('G1'))
     G2 = keras.layers.Input(shape=(None, None), name='incidence_matrix_g2_input', tensor=kwargs.get('G2'))
     H1 = keras.layers.Input(shape=(None, None), name='incidence_matrix_h1_input', tensor=kwargs.get('H1'))
     H2 = keras.layers.Input(shape=(None, None), name='incidence_matrix_h2_input', tensor=kwargs.get('H2'))
-    Mq = ZanSmi_aff_edge(edge_feat_1=feate1, edge_feat_2=feate2, G1=G1, G2=G2, H1=H1, H2=H2).output
+    m5 = ZanSmi_aff_edge(edge_feat_1=feate1, edge_feat_2=feate2, G1=G1, G2=G2, H1=H1, H2=H2)
+    Mq = m5([z[2], z[3], G1, G2, H1, H2])
+    
+    mm5 = keras.models.Model(inputs=[img1, idx1, G1, H1, img2, idx2, G2, H2], outputs=Mq)
 
-    X = ZanSmi_match(vertex_affinity=Mp, edge_affinity=Mq, G1=G1, G2=G2, H1=H1, H2=H2).output
-    return keras.models.Model(inputs=[img1, idx1, G1, H1, img2, idx2, G2, H2], outputs=X)
+    m6 = ZanSmi_match(vertex_affinity=Mp, edge_affinity=Mq, G1=G1, G2=G2, H1=H1, H2=H2)
+
+    Mp = mm4([img1, idx1, img2, idx2])
+    Mq = mm5([img1, idx1, G1, H1, img2, idx2, G2, H2])
+    X = m6([Mp, Mq, G1, G2, H1, H2])
+
+    m = keras.models.Model(inputs=[img1, idx1, G1, H1, img2, idx2, G2, H2], outputs=X)
+    return m
 
 
 def deep_graph_matching_model():
