@@ -9,7 +9,12 @@ def idxtransform(idx, scale=2**5):
     #        scale: scaling parameter of feature extractor
     #               for instance, we use MobileNetV2 which halves input image 5 times, so default scaling parameter is 32
     # Output: scaled indices with added leading batch number
-    x = idx / scale
+    assert isinstance(scale, (int, list, tuple))
+    if isinstance(scale, int):
+        x = idx / scale
+    if isinstance(scale, (list, tuple)):
+        assert len(scale) == 2
+        x = idx / np.reshape(np.array(scale, dtype=np.int32), (1, 2))
     r = tf.reshape(tf.range(tf.shape(idx)[0]), [-1, 1, 1])
     r = tf.tile(r, tf.concat([[1], tf.shape(idx)[1:-1], [1]], axis=0))
     return tf.concat([r, x], axis=-1)
