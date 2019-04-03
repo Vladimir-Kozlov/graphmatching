@@ -108,8 +108,37 @@ def ZanSmi_match(**kwargs):
     return keras.models.Model(inputs=[Mp, Mq, G1, G2, H1, H2], outputs=sl, name='match_model')
 
 
+def ZanSmi_full_model(**kwargs):
+    img1 = keras.layers.Input(shape=(None, None, 3), name='image_1_input', tensor=kwargs.get('img1'))
+    img2 = keras.layers.Input(shape=(None, None, 3), name='image_2_input', tensor=kwargs.get('img2'))
+    m = ZanSmi_feat_maps()
+    fmv1, fme1 = m(img1)
+    fmv2, fme2 = m(img2)
 
+    idx1 = keras.layers.Input(shape=(None, 2), dtype='int32', tensor=kwargs.get('keypoint1'),
+                              name='keypoints_coordinates_image_1_input')
+    idx2 = keras.layers.Input(shape=(None, 2), dtype='int32', tensor=kwargs.get('keypoint2'),
+                              name='keypoints_coordinates_image_2_input')
+    m = ZanSmi_transform_index()
+    idxv1, idxe1 = m(idx1)
+    idxv2, idxe2 = m(idx2)
 
+    m = ZanSmi_feat_extract()
+    featv1 = m([fmv1, idxv1])
+    feate1 = m([fme1, idxe1])
+    featv2 = m([fmv2, idxv2])
+    feate2 = m([fme2, idxe2])
+
+    Mp = ZanSmi_aff_vertex(vertex_feat_1=featv1, vertex_feat_2=featv2).output
+
+    G1 = keras.layers.Input(shape=(None, None), name='incidence_matrix_g1_input', tensor=kwargs.get('G1'))
+    G2 = keras.layers.Input(shape=(None, None), name='incidence_matrix_g2_input', tensor=kwargs.get('G2'))
+    H1 = keras.layers.Input(shape=(None, None), name='incidence_matrix_h1_input', tensor=kwargs.get('H1'))
+    H2 = keras.layers.Input(shape=(None, None), name='incidence_matrix_h2_input', tensor=kwargs.get('H2'))
+    Mq = ZanSmi_aff_edge(edge_feat_1=feate1, edge_feat_2=feate2, G1=G1, G2=G2, H1=H1, H2=H2).output
+
+    X = ZanSmi_match(vertex_affinity=Mp, edge_affinity=Mq, G1=G1, G2=G2, H1=H1, H2=H2).output
+    return keras.models.Model(inputs=[img1, idx1, G1, H1, img2, idx2, G2, H2], outputs=X)
 
 
 def deep_graph_matching_model():
