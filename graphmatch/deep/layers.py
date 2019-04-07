@@ -58,7 +58,7 @@ class VertexAffinityLayer(keras.layers.Layer):
     
 class EdgeAffinityLayer(keras.layers.Layer):
     # Layer that calculates edge affinity matrix from edge feature vectors and incidence matrices
-    def __init__(self, eps=1e-6, **kwargs):
+    def __init__(self, eps=0., **kwargs):
         self.eps = eps
         super(EdgeAffinityLayer, self).__init__(**kwargs)
 
