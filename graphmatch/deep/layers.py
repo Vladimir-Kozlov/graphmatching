@@ -107,7 +107,7 @@ class EdgeAffinityLayer(keras.layers.Layer):
 
 class VertexAffinityCosineLayer(keras.layers.Layer):
     # Layer that calculates vertex affinity matrix from vertex feature vectors
-    def __init__(self, transform_dim=8, **kwargs):
+    def __init__(self, transform_dim=1, **kwargs):
         self.transform_dim = transform_dim
         super(VertexAffinityCosineLayer, self).__init__(**kwargs)
 
@@ -121,11 +121,12 @@ class VertexAffinityCosineLayer(keras.layers.Layer):
     def call(self, x):
         assert isinstance(x, list)
         # Input: V_l, Vmap_l, V_r, Vmap_r
-        #        V_l, V_r: matrices of vertex features
-        #        of shape [n1, vertex feature vector length] and [n2, VFVL] respectively
-        #        V_map: vector of 0 and 1 to indicate whether the vertex is meaningful or is a dummy
+        #        V_l, V_r: matrices of vertex features of shape [n1, k] and [n2, k] respectively
+        #        V_mask: vector of 0 and 1 to indicate whether the vertex is meaningful or is a dummy
         # Output: Mp: cosine similarities between V_l @ transform_matrix and V_r @ transform_matrix,
-        #             normalized to [0, 1]; if vertex is dummy, than similarities are 0.
+        #             normalized to [0, 1]; if vertex is dummy, then similarities are 0.
+
+        # Adding dummy vertex to remove and insert vertices
         z = tf.shape(x[0])
         V_l = tf.concat([x[0], tf.zeros(tf.concat([z[:-2], [1], [z[-1]]], axis=0))], axis=-2)
         z = tf.shape(x[2])
@@ -134,20 +135,52 @@ class VertexAffinityCosineLayer(keras.layers.Layer):
         U_l = tf.math.l2_normalize(tf.tensordot(V_l, self.transform_matrix, axes=1), axis=-1)
         U_r = tf.math.l2_normalize(tf.tensordot(V_r, self.transform_matrix, axes=1), axis=-1)
 
-        Vmap_l = tf.expand_dims(x[1], axis=-1)
-        Vmap_r = tf.expand_dims(x[3], axis=-1)
-        U_map = tf.linalg.matmul(Vmap_l, Vmap_r, transpose_b=True)
-        z = tf.shape(U_map)
-        dv = tf.ones(tf.concat([z[:-1], [1]], axis=0), dtype=U_map.dtype)
-        dh = tf.ones(tf.concat([z[:-2], [1], [z[-1]]], axis=0), dtype=U_map.dtype)
-        d0 = tf.ones(tf.concat([z[:-2], [1, 1]], axis=0), dtype=U_map.dtype)
-        U_map = tf.concat([tf.concat([U_map, dv], axis=-1), tf.concat([dh, d0], axis=-1)], axis=-2)
+        Vmask_l = tf.expand_dims(x[1], axis=-1)
+        Vmask_r = tf.expand_dims(x[3], axis=-1)
+        U_mask = tf.linalg.matmul(Vmask_l, Vmask_r, transpose_b=True)
+        z = tf.shape(U_mask)
+        # Padding U_mask with 1 to ensure dummy affinities are preserved
+        dv = tf.ones(tf.concat([z[:-1], [1]], axis=0), dtype=U_mask.dtype)
+        dh = tf.ones(tf.concat([z[:-2], [1], [z[-1]]], axis=0), dtype=U_mask.dtype)
+        d0 = tf.ones(tf.concat([z[:-2], [1, 1]], axis=0), dtype=U_mask.dtype)
+        U_map = tf.concat([tf.concat([U_mask, dv], axis=-1), tf.concat([dh, d0], axis=-1)], axis=-2)
 
-        return U_map * (tf.linalg.matmul(U_l, U_r, transpose_b=True) + 1.) / 2.
+        return U_mask * (tf.linalg.matmul(U_l, U_r, transpose_b=True) + 1.) / 2.
     
     def compute_output_shape(self, input_shape):
         assert isinstance(input_shape, list)
-        return (input_shape[0][0] + 1, input_shape[2][0] + 1)
+        return (None if input_shape[0][0] is None else input_shape[0][0] + 1,
+                None if input_shape[2][0] is None else input_shape[2][0] + 1)
+
+
+class EdgeAffinityCosineLayer(keras.layers.Layer):
+    # Layer that calculates edge affinity matrix from edge feature vectors
+    def __init__(self, transform_dim=1, **kwargs):
+        self.transform_dim = transform_dim
+        super(EdgeAffinityCosineLayer, self).__init__(**kwargs)
+
+    def build(self, input_shape):
+        assert isinstance(input_shape, list)
+        self.transform_matrix = self.add_weight(name='transform_matrix',
+                                                shape=(input_shape[0][-1], self.transform_dim),
+                                                initializer='orthogonal', trainable=True)
+        super(EdgeAffinityCosineLayer, self).build(input_shape)
+        
+    def call(self, x):
+        assert isinstance(x, list)
+        # Input: E_l, E_r: matrices of edge features
+        #        of shape [m1, edge feature vector length] and [m2, EFVL] respectively
+        #        Masking is done by incidence matrices
+        # Output: Mq: cosine similarities between E_l @ transform_matrix and E_r @ transform_matrix, normalized to [0, 1]
+        
+        E_l = tf.math.l2_normalize(tf.tensordot(x[0], self.transform_matrix, axes=1), axis=-1)
+        E_r = tf.math.l2_normalize(tf.tensordot(x[1], self.transform_matrix, axes=1), axis=-1)
+
+        return (tf.linalg.matmul(E_l, E_r, transpose_b=True) + 1.) / 2.
+    
+    def compute_output_shape(self, input_shape):
+        assert isinstance(input_shape, list)
+        return (input_shape[0][0], input_shape[1][0])
 
     
 def power_iter_factorized(Mp, Mq, G1, G2, H1, H2, max_iter=100, eps_iter=1e-6):
