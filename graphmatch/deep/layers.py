@@ -54,7 +54,7 @@ class VertexAffinityLayer(keras.layers.Layer):
         assert isinstance(input_shape, list)
         shape_u1, shape_u2 = input_shape
         return (shape_u1[0], shape_u2[0])
-    
+
     
 class EdgeAffinityLayer(keras.layers.Layer):
     # Layer that calculates edge affinity matrix from edge feature vectors and incidence matrices
@@ -103,7 +103,44 @@ class EdgeAffinityLayer(keras.layers.Layer):
     def compute_output_shape(self, input_shape):
         assert isinstance(input_shape, list)
         return (input_shape[0][0], input_shape[1][0])
+
+
+class VertexAffinityCosineLayer(keras.layers.Layer):
+    # Layer that calculates vertex affinity matrix from vertex feature vectors
+    def __init__(self, transform_dim=8, **kwargs):
+        self.transform_dim = transform_dim
+        super(VertexAffinityCosineLayer, self).__init__(**kwargs)
+
+    def build(self, input_shape):
+        assert isinstance(input_shape, list)
+        self.transform_matrix = self.add_weight(name='transform_matrix',
+                                                shape=(input_shape[0][-1], self.transform_dim),
+                                                initializer='orthogonal', trainable=True)
+        super(VertexAffinityCosineLayer, self).build(input_shape)
+        
+    def call(self, x):
+        assert isinstance(x, list)
+        # Input: V_l, Vmap_l, V_r, Vmap_r
+        #        V_l, V_r: matrices of vertex features
+        #        of shape [n1, vertex feature vector length] and [n2, VFVL] respectively
+        #        V_map: vector of 0 and 1 to indicate whether the vertex is meaningful or is a dummy
+        # Output: Mp: cosine similarities between V_l @ transform_matrix and V_r @ transform_matrix,
+        #             normalized to [0, 1]; if vertex is dummy, than similarities are 0.
+        V_l = tf.concat([x[0], tf.zeros(tf.concat([tf.shape(x[0])[:-2], [1], [tf.shape(x[0])[-1]]], axis=0))], axis=-2)
+        V_r = tf.concat([x[2], tf.zeros(tf.concat([tf.shape(x[2])[:-2], [1], [tf.shape(x[2])[-1]]], axis=0))], axis=-2)
+
+        Vmap_l = tf.expand_dims(tf.concat([x[1], tf.ones(tf.concat([tf.shape(x[1])[:-1], [1]], axis=0), dtype=x[1].dtype)], axis=-1), axis=-1)
+        Vmap_r = tf.expand_dims(tf.concat([x[3], tf.ones(tf.concat([tf.shape(x[3])[:-1], [1]], axis=0), dtype=x[3].dtype)], axis=-1), axis=-1)
+        
+        U_l = tf.math.l2_normalize(tf.tensordot(V_l, self.transform_matrix, axes=1), axis=-1)
+        U_r = tf.math.l2_normalize(tf.tensordot(V_r, self.transform_matrix, axes=1), axis=-1)
+        U_map = tf.linalg.matmul(Vmap_l, Vmap_r, transpose_b=True)
+        return U_map * (tf.linalg.matmul(U_l, U_r, transpose_b=True) + 1.) / 2.
     
+    def compute_output_shape(self, input_shape):
+        assert isinstance(input_shape, list)
+        return (input_shape[0][0] + 1, input_shape[2][0] + 1)
+
     
 def power_iter_factorized(Mp, Mq, G1, G2, H1, H2, max_iter=100, eps_iter=1e-6):
     # Power iteration for affinity matrix
