@@ -114,7 +114,7 @@ class VertexAffinityCosineLayer(keras.layers.Layer):
     def build(self, input_shape):
         assert isinstance(input_shape, list)
         self.transform_matrix = self.add_weight(name='transform_matrix',
-                                                shape=(input_shape[0][-1], self.transform_dim),
+                                                shape=(input_shape[0][-1].value, self.transform_dim),
                                                 initializer='orthogonal', trainable=True)
         super(VertexAffinityCosineLayer, self).build(input_shape)
         
@@ -143,7 +143,7 @@ class VertexAffinityCosineLayer(keras.layers.Layer):
         dv = tf.ones(tf.concat([z[:-1], [1]], axis=0), dtype=U_mask.dtype)
         dh = tf.ones(tf.concat([z[:-2], [1], [z[-1]]], axis=0), dtype=U_mask.dtype)
         d0 = tf.ones(tf.concat([z[:-2], [1, 1]], axis=0), dtype=U_mask.dtype)
-        U_map = tf.concat([tf.concat([U_mask, dv], axis=-1), tf.concat([dh, d0], axis=-1)], axis=-2)
+        U_mask = tf.concat([tf.concat([U_mask, dv], axis=-1), tf.concat([dh, d0], axis=-1)], axis=-2)
 
         return U_mask * (tf.linalg.matmul(U_l, U_r, transpose_b=True) + 1.) / 2.
     
@@ -162,7 +162,7 @@ class EdgeAffinityCosineLayer(keras.layers.Layer):
     def build(self, input_shape):
         assert isinstance(input_shape, list)
         self.transform_matrix = self.add_weight(name='transform_matrix',
-                                                shape=(input_shape[0][-1], self.transform_dim),
+                                                shape=(input_shape[0][-1].value, self.transform_dim),
                                                 initializer='orthogonal', trainable=True)
         super(EdgeAffinityCosineLayer, self).build(input_shape)
         
@@ -281,7 +281,7 @@ class SinkhornIterationLayer(keras.layers.Layer):
         return input_shape
 
 
-class SMACLayer(keras.layers.layer):
+class SMACLayer(keras.layers.Layer):
     def __init__(self, num_vertex, max_iter=100, eps_iter=1e-6, **kwargs):
         assert isinstance(num_vertex, (int, list, tuple))
         if isinstance(num_vertex, int):
@@ -306,9 +306,9 @@ class SMACLayer(keras.layers.layer):
         d = np.ones((self.num_vertex[0] + self.num_vertex[1], 1, 1))
         C0 = (C - d * C[[-1], :, :] / d[-1, 0, 0])[:-1, :, :]
         U = np.linalg.inv(np.tensordot(C0, C0, axes=([1, 2], [1, 2])))
-        self.P = tf.constant(np.tensordot(C0, np.tensordot(U, C0, axes=([1], [0])), axes=([0], [0])))
-        self.Ck = tf.constant(C[-1, :, :])
-        self.dk = tf.constant(d[-1, 0, 0])
+        self.P = tf.constant(np.tensordot(C0, np.tensordot(U, C0, axes=([1], [0])), axes=([0], [0])), dtype=keras.backend.floatx())
+        self.Ck = tf.constant(C[-1, :, :], dtype=keras.backend.floatx())
+        self.dk = tf.constant(d[-1, 0, 0], dtype=keras.backend.floatx())
         super(SMACLayer, self).build(input_shape)
 
     def call(self, x):

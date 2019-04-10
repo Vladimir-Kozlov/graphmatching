@@ -136,9 +136,10 @@ def SMACNet(num_vertex, **kwargs):
     feate1 = fmap_idx([fme1, idxe1])
     feate2 = fmap_idx([fme2, idxe2])
 
-    vmask1 = keras.layers.Input(shape=(num_vertex[0]), name='vertex_mask_1_input', tensor=kwargs.get('vmask1'))
-    vmask2 = keras.layers.Input(shape=(num_vertex[1]), name='vertex_mask_2_input', tensor=kwargs.get('vmask2'))
-    Mp = layers.VertexAffinityCosineLayer(name='vertex_affinity_layer')([featv1, vmask1, featv2, vmask2])
+    vmask1 = keras.layers.Input(shape=(num_vertex[0],), name='vertex_mask_1_input', tensor=kwargs.get('vmask1'))
+    vmask2 = keras.layers.Input(shape=(num_vertex[1],), name='vertex_mask_2_input', tensor=kwargs.get('vmask2'))
+    vertex_transform_dim = kwargs.get('vertex_transform_dim', 8)
+    Mp = layers.VertexAffinityCosineLayer(transform_dim=vertex_transform_dim, name='vertex_affinity_layer')([featv1, vmask1, featv2, vmask2])
 
     G1 = keras.layers.Input(shape=(None, None), name='incidence_matrix_g1_input', tensor=kwargs.get('G1'))
     G2 = keras.layers.Input(shape=(None, None), name='incidence_matrix_g2_input', tensor=kwargs.get('G2'))
@@ -149,7 +150,8 @@ def SMACNet(num_vertex, **kwargs):
                                    name='make_edges_layer')
     e1 = makeedge([feate1, G1, H1])
     e2 = makeedge([feate2, G2, H2])
-    Mq = layers.EdgeAffinityCosineLayer(name='edge_affinity_layer')([e1, e2])
+    edge_transform_dim = kwargs.get('edge_transform_dim', 16)
+    Mq = layers.EdgeAffinityCosineLayer(transform_dim=edge_transform_dim, name='edge_affinity_layer')([e1, e2])
 
     smac_max_iter = kwargs.get('smac_max_iter', 100)
     smac_eps_iter = kwargs.get('smac_eps_iter', 1e-6)
