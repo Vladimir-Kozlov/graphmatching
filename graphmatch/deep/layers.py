@@ -349,7 +349,7 @@ class SMACLayer(keras.layers.Layer):
         d = tf.constant(True)
         v = mul_p(tf.ones(tf.shape(Mp)))
         w = tf.while_loop(cond=cond, body=body, loop_vars=(v, i, d), maximum_iterations=self.max_iter, swap_memory=True)[0]
-        return w * self.dk / tf.tensordot(w, self.Ck, axes=([-2, -1], [0, 1]))
+        return w * self.dk / tf.expand_dims(tf.expand_dims(tf.tensordot(w, self.Ck, axes=([-2, -1], [0, 1])), axis=-1), axis=-1)
 
     def compute_output_shape(self, input_shape):
         assert isinstance(input_shape, list)
