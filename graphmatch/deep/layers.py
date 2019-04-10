@@ -126,15 +126,23 @@ class VertexAffinityCosineLayer(keras.layers.Layer):
         #        V_map: vector of 0 and 1 to indicate whether the vertex is meaningful or is a dummy
         # Output: Mp: cosine similarities between V_l @ transform_matrix and V_r @ transform_matrix,
         #             normalized to [0, 1]; if vertex is dummy, than similarities are 0.
-        V_l = tf.concat([x[0], tf.zeros(tf.concat([tf.shape(x[0])[:-2], [1], [tf.shape(x[0])[-1]]], axis=0))], axis=-2)
-        V_r = tf.concat([x[2], tf.zeros(tf.concat([tf.shape(x[2])[:-2], [1], [tf.shape(x[2])[-1]]], axis=0))], axis=-2)
-
-        Vmap_l = tf.expand_dims(tf.concat([x[1], tf.ones(tf.concat([tf.shape(x[1])[:-1], [1]], axis=0), dtype=x[1].dtype)], axis=-1), axis=-1)
-        Vmap_r = tf.expand_dims(tf.concat([x[3], tf.ones(tf.concat([tf.shape(x[3])[:-1], [1]], axis=0), dtype=x[3].dtype)], axis=-1), axis=-1)
+        z = tf.shape(x[0])
+        V_l = tf.concat([x[0], tf.zeros(tf.concat([z[:-2], [1], [z[-1]]], axis=0))], axis=-2)
+        z = tf.shape(x[2])
+        V_r = tf.concat([x[2], tf.zeros(tf.concat([z[:-2], [1], [z[-1]]], axis=0))], axis=-2)
         
         U_l = tf.math.l2_normalize(tf.tensordot(V_l, self.transform_matrix, axes=1), axis=-1)
         U_r = tf.math.l2_normalize(tf.tensordot(V_r, self.transform_matrix, axes=1), axis=-1)
+
+        Vmap_l = tf.expand_dims(x[1], axis=-1)
+        Vmap_r = tf.expand_dims(x[3], axis=-1)
         U_map = tf.linalg.matmul(Vmap_l, Vmap_r, transpose_b=True)
+        z = tf.shape(U_map)
+        dv = tf.ones(tf.concat([z[:-1], [1]], axis=0), dtype=U_map.dtype)
+        dh = tf.ones(tf.concat([z[:-2], [1], [z[-1]]], axis=0), dtype=U_map.dtype)
+        d0 = tf.ones(tf.concat([z[:-2], [1, 1]], axis=0), dtype=U_map.dtype)
+        U_map = tf.concat([tf.concat([U_map, dv], axis=-1), tf.concat([dh, d0], axis=-1)], axis=-2)
+
         return U_map * (tf.linalg.matmul(U_l, U_r, transpose_b=True) + 1.) / 2.
     
     def compute_output_shape(self, input_shape):
