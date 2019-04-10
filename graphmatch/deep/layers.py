@@ -314,7 +314,13 @@ class SMACLayer(keras.layers.Layer):
     def call(self, x):
         assert isinstance(x, list)
         Mp, Mq, G1, G2, H1, H2 = x
-
+        def add_dummy(X):
+            z = tf.shape(X)
+            return tf.concat([X, tf.zeros(tf.concat([z[:-2], [1], [z[-1]]], axis=0))], axis=-2)
+        G1 = add_dummy(G1)
+        G2 = add_dummy(G2)
+        H1 = add_dummy(H1)
+        H2 = add_dummy(H2)
         def mtr(v, P1, Q1, P2, Q2):
             # Q1^T * v * Q2
             x1 = tf.linalg.matmul(Q1, v, transpose_a=True)
