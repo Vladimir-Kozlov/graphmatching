@@ -104,7 +104,7 @@ def ZanSmi_mnv2_feat(**kwargs):
     return m
 
 
-def SMACNet(num_vertex, **kwargs):
+def SpectralNet(**kwargs):
     img1 = keras.layers.Input(shape=(None, None, 3), name='image_1_input', tensor=kwargs.get('img1'))
     img2 = keras.layers.Input(shape=(None, None, 3), name='image_2_input', tensor=kwargs.get('img2'))
     mnv2 = keras.applications.mobilenet_v2.MobileNetV2(input_shape=(None, None, 3), weights='imagenet', include_top=False, pooling=None)
@@ -119,9 +119,9 @@ def SMACNet(num_vertex, **kwargs):
     fme1 = e(img1)
     fme2 = e(img2)
 
-    idx1 = keras.layers.Input(shape=(num_vertex[0], 2), dtype='int32', tensor=kwargs.get('keypoint1'),
+    idx1 = keras.layers.Input(shape=(None, 2), dtype='int32', tensor=kwargs.get('keypoint1'),
                               name='keypoints_coordinates_image_1_input')
-    idx2 = keras.layers.Input(shape=(num_vertex[1], 2), dtype='int32', tensor=kwargs.get('keypoint2'),
+    idx2 = keras.layers.Input(shape=(None, 2), dtype='int32', tensor=kwargs.get('keypoint2'),
                               name='keypoints_coordinates_image_2_input')
     v = layers.IndexTransformationLayer(scale=8, name='vertex_index_transform')
     e = layers.IndexTransformationLayer(scale=8, name='edge_index_transform')
@@ -136,8 +136,8 @@ def SMACNet(num_vertex, **kwargs):
     feate1 = fmap_idx([fme1, idxe1])
     feate2 = fmap_idx([fme2, idxe2])
 
-    vmask1 = keras.layers.Input(shape=(num_vertex[0],), name='vertex_mask_1_input', tensor=kwargs.get('vmask1'))
-    vmask2 = keras.layers.Input(shape=(num_vertex[1],), name='vertex_mask_2_input', tensor=kwargs.get('vmask2'))
+    vmask1 = keras.layers.Input(shape=(None,), name='vertex_mask_1_input', tensor=kwargs.get('vmask1'))
+    vmask2 = keras.layers.Input(shape=(None,), name='vertex_mask_2_input', tensor=kwargs.get('vmask2'))
     vertex_transform_dim = kwargs.get('vertex_transform_dim', 8)
     Mp = layers.VertexAffinityCosineLayer(transform_dim=vertex_transform_dim, name='vertex_affinity_layer')([featv1, vmask1, featv2, vmask2])
 
@@ -153,10 +153,10 @@ def SMACNet(num_vertex, **kwargs):
     edge_transform_dim = kwargs.get('edge_transform_dim', 16)
     Mq = layers.EdgeAffinityCosineLayer(transform_dim=edge_transform_dim, name='edge_affinity_layer')([e1, e2])
 
-    smac_max_iter = kwargs.get('smac_max_iter', 100)
-    smac_eps_iter = kwargs.get('smac_eps_iter', 1e-6)
-    smac = layers.SMACLayer(num_vertex, max_iter=smac_max_iter, eps_iter=smac_eps_iter, name='smac_layer')([Mp, Mq, G1, G2, H1, H2])
+    power_max_iter = kwargs.get('power_max_iter', 100)
+    power_eps_iter = kwargs.get('power_eps_iter', 1e-6)
+    sm = layers.PowerIterationLayer(max_iter=power_max_iter, eps_iter=power_eps_iter)([Mp, Mq, G1, G2, H1, H2])
 
-    m = keras.models.Model(inputs=[img1, idx1, vmask1, G1, H1, img2, idx2, vmask2, G2, H2], outputs=smac)
+    m = keras.models.Model(inputs=[img1, idx1, vmask1, G1, H1, img2, idx2, vmask2, G2, H2], outputs=sm)
     return m
 

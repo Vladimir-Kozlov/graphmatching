@@ -120,37 +120,24 @@ class VertexAffinityCosineLayer(keras.layers.Layer):
         
     def call(self, x):
         assert isinstance(x, list)
-        # Input: V_l, Vmap_l, V_r, Vmap_r
+        # Input: V_l, Vmask_l, V_r, Vmask_r
         #        V_l, V_r: matrices of vertex features of shape [n1, k] and [n2, k] respectively
         #        V_mask: vector of 0 and 1 to indicate whether the vertex is meaningful or is a dummy
         # Output: Mp: cosine similarities between V_l @ transform_matrix and V_r @ transform_matrix,
         #             normalized to [0, 1]; if vertex is dummy, then similarities are 0.
-
-        # Adding dummy vertex to remove and insert vertices
-        z = tf.shape(x[0])
-        V_l = tf.concat([x[0], tf.zeros(tf.concat([z[:-2], [1], [z[-1]]], axis=0))], axis=-2)
-        z = tf.shape(x[2])
-        V_r = tf.concat([x[2], tf.zeros(tf.concat([z[:-2], [1], [z[-1]]], axis=0))], axis=-2)
         
-        U_l = tf.math.l2_normalize(tf.tensordot(V_l, self.transform_matrix, axes=1), axis=-1)
-        U_r = tf.math.l2_normalize(tf.tensordot(V_r, self.transform_matrix, axes=1), axis=-1)
+        U_l = tf.math.l2_normalize(tf.tensordot(x[0], self.transform_matrix, axes=1), axis=-1)
+        U_r = tf.math.l2_normalize(tf.tensordot(x[2], self.transform_matrix, axes=1), axis=-1)
 
         Vmask_l = tf.expand_dims(x[1], axis=-1)
         Vmask_r = tf.expand_dims(x[3], axis=-1)
         U_mask = tf.linalg.matmul(Vmask_l, Vmask_r, transpose_b=True)
-        z = tf.shape(U_mask)
-        # Padding U_mask with 1 to ensure dummy affinities are preserved
-        dv = tf.ones(tf.concat([z[:-1], [1]], axis=0), dtype=U_mask.dtype)
-        dh = tf.ones(tf.concat([z[:-2], [1], [z[-1]]], axis=0), dtype=U_mask.dtype)
-        d0 = tf.ones(tf.concat([z[:-2], [1, 1]], axis=0), dtype=U_mask.dtype)
-        U_mask = tf.concat([tf.concat([U_mask, dv], axis=-1), tf.concat([dh, d0], axis=-1)], axis=-2)
 
         return U_mask * (tf.linalg.matmul(U_l, U_r, transpose_b=True) + 1.) / 2.
     
     def compute_output_shape(self, input_shape):
         assert isinstance(input_shape, list)
-        return (None if input_shape[0][0] is None else input_shape[0][0] + 1,
-                None if input_shape[2][0] is None else input_shape[2][0] + 1)
+        return (input_shape[0][0], input_shape[2][0])
 
 
 class EdgeAffinityCosineLayer(keras.layers.Layer):
@@ -279,79 +266,4 @@ class SinkhornIterationLayer(keras.layers.Layer):
     def compute_output_shape(self, input_shape):
         # does not change shape of input
         return input_shape
-
-
-class SMACLayer(keras.layers.Layer):
-    def __init__(self, num_vertex, max_iter=100, eps_iter=1e-6, **kwargs):
-        assert isinstance(num_vertex, (int, list, tuple))
-        if isinstance(num_vertex, int):
-            num_vertex = (num_vertex, num_vertex)
-        assert len(num_vertex) == 2
-        self.num_vertex = num_vertex
-        self.max_iter = max_iter
-        self.eps_iter = eps_iter
-        super(SMACLayer, self).__init__(**kwargs)
-
-    def build(self, input_shape):
-        assert isinstance(input_shape, list)
-        # Left hand of affine constraints: sum of rows and columns is 1
-        # dummy vertex included in sum, but has no constraints
-        C = np.zeros((self.num_vertex[0] + self.num_vertex[1],
-                      self.num_vertex[0] + 1,
-                      self.num_vertex[1] + 1))
-        for i in range(self.num_vertex[0]):
-            C[i, i, :] = 1.
-        for j in range(self.num_vertex[1]):
-            C[j + self.num_vertex[0], :, j] = 1.
-        d = np.ones((self.num_vertex[0] + self.num_vertex[1], 1, 1))
-        C0 = (C - d * C[[-1], :, :] / d[-1, 0, 0])[:-1, :, :]
-        U = np.linalg.inv(np.tensordot(C0, C0, axes=([1, 2], [1, 2])))
-        self.P = tf.constant(np.tensordot(C0, np.tensordot(U, C0, axes=([1], [0])), axes=([0], [0])), dtype=keras.backend.floatx())
-        self.Ck = tf.constant(C[-1, :, :], dtype=keras.backend.floatx())
-        self.dk = tf.constant(d[-1, 0, 0], dtype=keras.backend.floatx())
-        super(SMACLayer, self).build(input_shape)
-
-    def call(self, x):
-        assert isinstance(x, list)
-        Mp, Mq, G1, G2, H1, H2 = x
-        def add_dummy(X):
-            z = tf.shape(X)
-            return tf.concat([X, tf.zeros(tf.concat([z[:-2], [1], [z[-1]]], axis=0))], axis=-2)
-        G1 = add_dummy(G1)
-        G2 = add_dummy(G2)
-        H1 = add_dummy(H1)
-        H2 = add_dummy(H2)
-        def mtr(v, P1, Q1, P2, Q2):
-            # Q1^T * v * Q2
-            x1 = tf.linalg.matmul(Q1, v, transpose_a=True)
-            x2 = tf.linalg.matmul(x1, Q2)
-            
-            y = Mq * x2
-            
-            # P1 * y * P2^T
-            z1 = tf.linalg.matmul(P1, y)
-            z2 = tf.linalg.matmul(z1, P2, transpose_b=True)
-            return z2
-        def mul_p(v):
-            return v - tf.tensordot(v, self.P, axes=([-2, -1], [-2, -1]))
-        def power_iter(v):
-            t = (mtr(v, G1, H1, G2, H2) + mtr(v, H1, G1, H2, G2)) / 2.
-            t = t + Mp * v
-            t = mul_p(t)
-            return tf.math.l2_normalize(t, axis=[-2, -1])
-        def cond(v, i, d):
-            return tf.math.logical_and(i < self.max_iter, d)
-        def body(v, i, d):
-            u = power_iter(v)
-            return u, i + 1, tf.math.reduce_any(tf.linalg.norm(u - v, axis=(-2, -1)) >= self.eps_iter)
-        
-        i = tf.constant(0)
-        d = tf.constant(True)
-        v = mul_p(tf.ones(tf.shape(Mp)))
-        w = tf.while_loop(cond=cond, body=body, loop_vars=(v, i, d), maximum_iterations=self.max_iter, swap_memory=True)[0]
-        return w * self.dk / tf.expand_dims(tf.expand_dims(tf.tensordot(w, self.Ck, axes=([-2, -1], [0, 1])), axis=-1), axis=-1)
-
-    def compute_output_shape(self, input_shape):
-        assert isinstance(input_shape, list)
-        return input_shape[0]
 
