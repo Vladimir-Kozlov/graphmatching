@@ -53,12 +53,8 @@ def smac(W, N1, N2, C=None, d=None, num_iter=100):
     else:
         # place nonzero constraint last
         i = np.argmax(d != 0)
-        u = np.copy(C[i, :])
-        C[i, :] = C[-1, :]
-        C[-1, :] = u
-        u = np.copy(d[i])
-        d[i] = d[-1]
-        d[-1] = u
+        C[-1, :], C[i, :] = np.copy(C[i, :]), np.copy(C[-1, :])
+        d[-1], d[i] = np.copy(d[i]), np.copy(d[-1])
         Ceq = C[:-1, :] - np.expand_dims(d[:-1], axis=1) * C[-1, :] / d[-1]
 
     P = np.eye(N1 * N2) - np.dot(Ceq.T, np.dot(np.linalg.inv(np.dot(Ceq, Ceq.T)), Ceq))
