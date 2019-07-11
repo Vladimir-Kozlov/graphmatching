@@ -3,38 +3,6 @@ from tensorflow import keras
 import numpy as np
 
 
-def idxtransform(idx, scale=2**5):
-    # Transform coordinates of image points to index feature vectors in high layers
-    # Input: idx: point coordinates of shape [batch size, number of points, 2]
-    #        scale: scaling parameter of feature extractor
-    #               for instance, we use MobileNetV2 which halves input image 5 times, so default scaling parameter is 32
-    # Output: scaled indices with added leading batch number
-    assert isinstance(scale, (int, list, tuple))
-    if isinstance(scale, int):
-        x = idx / scale
-    if isinstance(scale, (list, tuple)):
-        assert len(scale) == 2
-        x = idx / np.reshape(np.array(scale, dtype=np.int32), (1, 2))
-    r = tf.reshape(tf.range(tf.shape(idx)[0]), [-1, 1, 1])
-    r = tf.tile(r, tf.concat([[1], tf.shape(idx)[1:-1], [1]], axis=0))
-    return tf.concat([r, x], axis=-1)
-
-
-class IndexTransformationLayer(keras.layers.Layer):
-    def __init__(self, scale=2**5, **kwargs):
-        self.scale = scale
-        super(IndexTransformationLayer, self).__init__(**kwargs)
-
-    def build(self, input_shape):
-        super(IndexTransformationLayer, self).build(input_shape)
-
-    def call(self, x):
-        return idxtransform(x, scale=self.scale)
-
-    def compute_output_shape(self, input_shape):
-        return input_shape[:-1] + [3]
-
-
 class VertexAffinityLayer(keras.layers.Layer):
     # Layer that calculates vertex affinity matrix from vertex feature vectors
     def build(self, input_shape):
