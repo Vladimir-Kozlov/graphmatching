@@ -1,6 +1,6 @@
 import tensorflow as tf
 keras = tf.keras
-import layers
+from . import layers
 
 
 def ZanSmi_full_model(**kwargs):
