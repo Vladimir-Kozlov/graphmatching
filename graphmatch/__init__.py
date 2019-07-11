@@ -1,1 +1,1 @@
-import matcher, postproc, utils, deep
+import graphmatch.matcher, graphmatch.postproc, graphmatch.utils, graphmatch.deep
