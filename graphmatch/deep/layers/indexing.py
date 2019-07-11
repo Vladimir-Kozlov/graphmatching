@@ -30,7 +30,7 @@ class ImageIndexLayer(keras.layers.Layer):
         idx = idxtransform(x[1], transform=self.transform)
         return tf.gather_nd(x[0], idx)
 
-    def compute_output_shape(self, input_shape)
+    def compute_output_shape(self, input_shape):
         assert isinstance(input_shape, (list, tuple))
         return (input_shape[1][0], input_shape[0][-1])
 
