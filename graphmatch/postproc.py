@@ -1,5 +1,5 @@
 import numpy as np
-import utils
+from . import utils
 
 def discr_assignment(X):
 	# Matcher output discretization by linear assignment maximization
