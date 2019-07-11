@@ -34,4 +34,3 @@ class ImageIndexLayer(keras.layers.Layer):
         assert isinstance(input_shape, (list, tuple))
         return (input_shape[1][0], input_shape[0][-1])
 
-        
