@@ -1,6 +1,5 @@
 import tensorflow as tf
-from tensorflow import keras
-import numpy as np
+keras = tf.keras
 
 
 def idxtransform(idx, transform=lambda x: x / 32):
@@ -14,18 +13,25 @@ def idxtransform(idx, transform=lambda x: x / 32):
     return tf.concat([r, x], axis=-1)
 
 
-class IndexTransformationLayer(keras.layers.Layer):
-    def __init__(self, scale=2**5, **kwargs):
-        self.scale = scale
-        super(IndexTransformationLayer, self).__init__(**kwargs)
+class ImageIndexLayer(keras.layers.Layer):
+    # Performs feature indexing from feature map
+    def __init__(self, transform=lambda x: x / 32, **kwargs):
+        self.transform = transform
+        super(ImageIndexLayer, self).__init__(**kwargs)
 
     def build(self, input_shape):
-        super(IndexTransformationLayer, self).build(input_shape)
+        assert isinstance(input_shape, (list, tuple))
+        super(ImageIndexLayer, self).build(input_shape)
 
     def call(self, x):
-        return idxtransform(x, scale=self.scale)
+        # Input: img: images, [batch size, height, width, channel]
+        #        idx: keypoint coordinates, [batch size, number of points, 2]
+        # Output: keypoint features, [batch size, number of points, channel]
+        idx = idxtransform(x[1], transform=self.transform)
+        return tf.gather_nd(x[0], idx)
 
-    def compute_output_shape(self, input_shape):
-        return input_shape[:-1] + [3]
+    def computr_output_shape(self, input_shape)
+        assert isinstance(input_shape, (list, tuple))
+        return (input_shape[1][0], input_shape[0][-1])
 
         

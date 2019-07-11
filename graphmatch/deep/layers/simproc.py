@@ -1,6 +1,5 @@
 import tensorflow as tf
-from tensorflow import keras
-import numpy as np
+keras = tf.keras
 
 
 def power_iter_factorized(Mp, Mq, G1, G2, H1, H2, max_iter=100, eps_iter=1e-6):
