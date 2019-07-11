@@ -1,5 +1,2 @@
-import utils
-import matcher
-import postproc
-import deep
+from . import utils, deep, postproc, matcher
 
