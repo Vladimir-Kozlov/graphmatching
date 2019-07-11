@@ -1,1 +1,1 @@
-from . import matcher, postproc, utils, deep
+import matcher, postproc, utils, deep
