@@ -14,15 +14,15 @@ def idxtransform(idx, transform=lambda x: x // 32):
     return tf.concat([r, x], axis=-1)
 
 
-class ImageIndexLayer(keras.layers.Layer):
+class FMapIndexLayer(keras.layers.Layer):
     # Performs feature indexing from feature map
     def __init__(self, transform=lambda x: x // 32, **kwargs):
         self.transform = transform
-        super(ImageIndexLayer, self).__init__(**kwargs)
+        super(FMapIndexLayer, self).__init__(**kwargs)
 
     def build(self, input_shape):
         assert isinstance(input_shape, (list, tuple))
-        super(ImageIndexLayer, self).build(input_shape)
+        super(FMapIndexLayer, self).build(input_shape)
 
     def call(self, x):
         # Input: img: images, [batch size, height, width, channel]
@@ -34,4 +34,16 @@ class ImageIndexLayer(keras.layers.Layer):
     def compute_output_shape(self, input_shape):
         assert isinstance(input_shape, (list, tuple))
         return (input_shape[1][0], input_shape[0][-1])
+
+
+class EdgeAttributeLayer(keras.layers.Lambda):
+	# General layer for calculating graph edge attributes
+	# Specific form of lambda layer
+	__alias = {'concat': lambda u, v: tf.concat([u, v], axis=-1), 
+	           'l2dist': lambda u, v: tf.norm(tf.to_float(u - v), ord='euclidean', axis=-1, keepdims=True),
+	           'l2dist_squared': lambda u, v: tf.reduce_sum(tf.to_float(u - v)**2, axis=-1, keepdims=True)}
+	def __init__(self, attr_func='concat', **kwargs):
+		if isinstance(attr_func, str):
+			attr_func = self.__alias[attr_func]
+		super(EdgeAttributeLayer, self).__init__(function=attr_func, **kwargs)
 
