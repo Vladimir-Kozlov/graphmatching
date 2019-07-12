@@ -1,8 +1,9 @@
 import tensorflow as tf
 keras = tf.keras
+from __future__ import division
 
 
-def idxtransform(idx, transform=lambda x: x / 32):
+def idxtransform(idx, transform=lambda x: x // 32):
     # Transform coordinates of image points to index feature vectors in high layers
     # Input: idx: point coordinates of shape [batch size, number of points, 2]
     #        transform: index transformation function; by default, we simply divide them by 32 (corresponding to feature map size in CNN)
@@ -15,7 +16,7 @@ def idxtransform(idx, transform=lambda x: x / 32):
 
 class ImageIndexLayer(keras.layers.Layer):
     # Performs feature indexing from feature map
-    def __init__(self, transform=lambda x: x / 32, **kwargs):
+    def __init__(self, transform=lambda x: x // 32, **kwargs):
         self.transform = transform
         super(ImageIndexLayer, self).__init__(**kwargs)
 
