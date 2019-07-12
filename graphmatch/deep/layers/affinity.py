@@ -1,5 +1,5 @@
 import tensorflow as tf
-from tensorflow import keras
+keras = tensorflow.keras
 
 
 def cosine_similarity(u, v):
@@ -8,7 +8,7 @@ def cosine_similarity(u, v):
     return tf.linalg.matmul(x, y, transpose_b=True)
 
 
-def AffinityLayer(keras.layers.Layer):
+class AffinityLayer(keras.layers.Layer):
     # Calculates pairwise similarity of two sets of vectors
     def __init__(self, sim_func=lambda u, v: (cosine_similarity(u, v) + 1.) / 2., **kwargs):
         self.sim_func = sim_func
