@@ -42,7 +42,7 @@ class VertexAffinityLayer(keras.layers.Layer):
                                                 shape=(input_shape[0][-1].value, self.transform_dim),
                                                 initializer='orthogonal', trainable=True)
         super(VertexAffinityLayer, self).build(input_shape)
-        
+
     def call(self, x):
         assert isinstance(x, list)
         # Input: V_l, V_r: matrices of vertex features of shape [n1, k] and [n2, k] respectively
@@ -53,7 +53,7 @@ class VertexAffinityLayer(keras.layers.Layer):
         U_r = tf.tensordot(x[1], self.transform_matrix, axes=1)
 
         return self.sim_func(U_l, U_r)
-    
+
     def compute_output_shape(self, input_shape):
         assert isinstance(input_shape, list)
         return (input_shape[0][0], input_shape[1][0])
@@ -72,7 +72,7 @@ class EdgeAffinityLayer(keras.layers.Layer):
                                                 shape=(input_shape[0][-1].value, self.transform_dim),
                                                 initializer='orthogonal', trainable=True)
         super(EdgeAffinityLayer, self).build(input_shape)
-        
+
     def call(self, x):
         assert isinstance(x, list)
         # Input: E_l, E_r: matrices of edge features
@@ -84,7 +84,7 @@ class EdgeAffinityLayer(keras.layers.Layer):
         E_r = tf.tensordot(x[1], self.transform_matrix, axes=1)
 
         return self.sim_func(E_l, E_r)
-    
+
     def compute_output_shape(self, input_shape):
         assert isinstance(input_shape, list)
         return (input_shape[0][0], input_shape[1][0])

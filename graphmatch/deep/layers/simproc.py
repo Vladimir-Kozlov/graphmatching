@@ -46,21 +46,21 @@ class PowerIterationLayer(keras.layers.Layer):
         self.max_iter = max_iter
         self.eps_iter = eps_iter
         super(PowerIterationLayer, self).__init__(**kwargs)
-    
+
     def build(self, input_shape):
         assert isinstance(input_shape, list)
         super(PowerIterationLayer, self).build(input_shape)
-    
+
     def call(self, x):
         assert isinstance(x, list)
         return power_iter_factorized(*x, max_iter=self.max_iter, eps_iter=self.eps_iter)
-    
+
     def compute_output_shape(self, input_shape):
         # output shape is the same as Mp
         assert isinstance(input_shape, list)
         return (input_shape[0][0], input_shape[0][1])
-    
-    
+
+
 def sinkhorn_loop(x, max_iter=100, eps_iter=1e-6):
     # Sinkhorn-Knopp algorithm for transforming matrix with nonnegative elements into doubly stochastic one
     # Input: x: matrix to be processed
@@ -88,13 +88,13 @@ class SinkhornIterationLayer(keras.layers.Layer):
         self.max_iter = max_iter
         self.eps_iter = eps_iter
         super(SinkhornIterationLayer, self).__init__(**kwargs)
-    
+
     def build(self, input_shape):
         super(SinkhornIterationLayer, self).build(input_shape)
-    
+
     def call(self, x):
         return sinkhorn_loop(x, max_iter=self.max_iter, eps_iter=self.eps_iter)
-    
+
     def compute_output_shape(self, input_shape):
         # does not change shape of input
         return input_shape
