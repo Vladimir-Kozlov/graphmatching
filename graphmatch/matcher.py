@@ -1,5 +1,5 @@
 import numpy as np
-import utils
+from . import utils
 
 
 def sm(W, N1, N2, num_iter=100):
