@@ -1,5 +1,5 @@
 import tensorflow as tf
-keras = tensorflow.keras
+keras = tf.keras
 
 
 def cosine_similarity(u, v):

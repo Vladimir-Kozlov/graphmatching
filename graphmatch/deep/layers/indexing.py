@@ -1,5 +1,5 @@
 import tensorflow as tf
-keras = tensorflow.keras
+keras = tf.keras
 
 
 def idxtransform(idx, transform=lambda x: x / 32):
