@@ -15,17 +15,17 @@ class AffinityLayer(keras.layers.Layer):
         super(AffinityLayer, self).__init__(**kwargs)
 
     def build(self, input_shape):
-        assert isinstance(input_shape, list)
+        assert isinstance(input_shape, (list, tuple))
         super(AffinityLayer, self).build(input_shape)
 
     def call(self, x):
         # Input: V_l, V_r: matrices of object features of shape [n1, k] and [n2, k] respectively
         # Output: Mp: pairwise similarities between object pairs, matrix of shape [n1, n2]
-        assert isinstance(x, list)
+        assert isinstance(x, (list, tuple))
         return self.sim_func(x[0], x[1])
 
     def compute_output_shape(self, input_shape):
-        assert isinstance(input_shape, list)
+        assert isinstance(input_shape, (list, tuple))
         return (input_shape[0][0], input_shape[1][0])
 
 
@@ -37,14 +37,14 @@ class VertexAffinityLayer(keras.layers.Layer):
         super(VertexAffinityLayer, self).__init__(**kwargs)
 
     def build(self, input_shape):
-        assert isinstance(input_shape, list)
+        assert isinstance(input_shape, (list, tuple))
         self.transform_matrix = self.add_weight(name='transform_matrix',
                                                 shape=(input_shape[0][-1].value, self.transform_dim),
                                                 initializer='orthogonal', trainable=True)
         super(VertexAffinityLayer, self).build(input_shape)
 
     def call(self, x):
-        assert isinstance(x, list)
+        assert isinstance(x, (list, tuple))
         # Input: V_l, V_r: matrices of vertex features of shape [n1, k] and [n2, k] respectively
         # Output: Mp: cosine similarities between V_l @ transform_matrix and V_r @ transform_matrix,
         #             normalized to [0, 1].
@@ -55,7 +55,7 @@ class VertexAffinityLayer(keras.layers.Layer):
         return self.sim_func(U_l, U_r)
 
     def compute_output_shape(self, input_shape):
-        assert isinstance(input_shape, list)
+        assert isinstance(input_shape, (list, tuple))
         return (input_shape[0][0], input_shape[1][0])
 
 
@@ -67,14 +67,14 @@ class EdgeAffinityLayer(keras.layers.Layer):
         super(EdgeAffinityLayer, self).__init__(**kwargs)
 
     def build(self, input_shape):
-        assert isinstance(input_shape, list)
+        assert isinstance(input_shape, (list, tuple))
         self.transform_matrix = self.add_weight(name='transform_matrix',
                                                 shape=(input_shape[0][-1].value, self.transform_dim),
                                                 initializer='orthogonal', trainable=True)
         super(EdgeAffinityLayer, self).build(input_shape)
 
     def call(self, x):
-        assert isinstance(x, list)
+        assert isinstance(x, (list, tuple))
         # Input: E_l, E_r: matrices of edge features
         #        of shape [m1, edge feature vector length] and [m2, EFVL] respectively
         #        Masking is done by incidence matrices
@@ -86,6 +86,6 @@ class EdgeAffinityLayer(keras.layers.Layer):
         return self.sim_func(E_l, E_r)
 
     def compute_output_shape(self, input_shape):
-        assert isinstance(input_shape, list)
+        assert isinstance(input_shape, (list, tuple))
         return (input_shape[0][0], input_shape[1][0])
 
