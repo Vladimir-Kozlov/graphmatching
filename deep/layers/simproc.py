@@ -1,8 +1,9 @@
 import tensorflow as tf
 keras = tf.keras
+from __future__ import division
 
 
-def power_iter_factorized(Mp, Mq, G1, G2, H1, H2, max_iter=100, eps_iter=1e-6):
+def power_iter_factorized(Mp, Mq, G1, G2, H1, H2, max_iter=100, eps_iter=1e-6, ord=2):
     # Power iteration for affinity matrix
     # Here we take advantage of affinity matrix factorization
     # Input: Mp: node affinity matrix of shape [n1, n2]
@@ -28,7 +29,7 @@ def power_iter_factorized(Mp, Mq, G1, G2, H1, H2, max_iter=100, eps_iter=1e-6):
     def power_iter(v):
         z = (mtr(v, G1, H1, G2, H2) + mtr(v, H1, G1, H2, G2)) / 2.
         t = z + Mp * v
-        return tf.math.l2_normalize(t, axis=[-2, -1])
+        return tf.div_no_nan(t, tf.linalg.norm(t, ord=ord, axis=(-2, -1), keepdims=True))
     def cond(v, i, d):
         return tf.math.logical_and(i < max_iter, d)
     def body(v, i, d):
@@ -42,9 +43,10 @@ def power_iter_factorized(Mp, Mq, G1, G2, H1, H2, max_iter=100, eps_iter=1e-6):
 
 
 class PowerIterationLayer(keras.layers.Layer):
-    def __init__(self, max_iter=100, eps_iter=1e-6, **kwargs):
+    def __init__(self, max_iter=100, eps_iter=1e-6, norm=2, **kwargs):
         self.max_iter = max_iter
         self.eps_iter = eps_iter
+        self.norm = 2
         super(PowerIterationLayer, self).__init__(**kwargs)
 
     def build(self, input_shape):
@@ -53,7 +55,7 @@ class PowerIterationLayer(keras.layers.Layer):
 
     def call(self, x):
         assert isinstance(x, list)
-        return power_iter_factorized(*x, max_iter=self.max_iter, eps_iter=self.eps_iter)
+        return power_iter_factorized(*x, max_iter=self.max_iter, eps_iter=self.eps_iter, ord=self.norm)
 
     def compute_output_shape(self, input_shape):
         # output shape is the same as Mp
