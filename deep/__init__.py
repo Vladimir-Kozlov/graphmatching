@@ -1,2 +1,2 @@
-from . import layers, applications
+from . import layers, losses, applications
 
