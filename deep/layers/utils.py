@@ -1,6 +1,6 @@
+from __future__ import division
 import tensorflow as tf
 keras = tf.keras
-from __future__ import division
 
 
 def idxtransform(idx, transform=lambda x: x // 32):

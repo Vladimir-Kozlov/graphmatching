@@ -1,6 +1,6 @@
+from __future__ import division
 import tensorflow as tf
 keras = tf.keras
-from __future__ import division
 
 
 def power_iter_factorized(Mp, Mq, G1, G2, H1, H2, max_iter=100, eps_iter=1e-6, ord=2):
