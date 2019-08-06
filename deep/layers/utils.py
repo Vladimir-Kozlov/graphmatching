@@ -42,10 +42,10 @@ class FMapIndexLayer(keras.layers.Lambda):
     #        idx: keypoint coordinates, [batch size, number of points, 2]
     # Output: keypoint features, [batch size, number of points, channel]
     def __init__(self, **kwargs):
-        f = lambda x: self.__mapidx2list(x[0], x[1])
+        f = lambda x: self._mapidx2list(x[0], x[1])
         super(FMapIndexLayer, self).__init__(function=f, **kwargs)
 
-    def __idxtransform(self, idx):
+    def _idxtransform(self, idx):
         # Add leading batch number to indices
         # Input: idx: point coordinates of shape [batch size, number of points, 2]
         # Output: indices with added leading batch number
@@ -53,23 +53,23 @@ class FMapIndexLayer(keras.layers.Lambda):
         r = tf.tile(r, tf.concat([[1], tf.shape(idx)[1:-1], [1]], axis=0))
         return tf.concat([r, idx], axis=-1)
 
-    def __mapidx2list(self, img, idx):
-        return tf.gather_nd(img, self.__idxtransform(idx))
+    def _mapidx2list(self, img, idx):
+        return tf.gather_nd(img, self._idxtransform(idx))
 
 
 class EdgeFeatExtract(keras.layers.Layer):
     def __init__(self, **kwargs):
-        f = lambda x: self.__extract_both(x[0], x[1], x[2])
+        f = lambda x: self._extract_both(x[0], x[1], x[2])
         super(EdgeFeatExtract, self).__init__(function=f, **kwargs)
 
-    def __extract_at_end(self, x, M):
+    def _extract_at_end(self, x, M):
         return tf.linalg.matmul(M, tf.to_float(x), transpose_a=True)
 
-    def __extract_both(self, x, G, H):
+    def _extract_both(self, x, G, H):
         # x: feature list, [n_vertex, num_of_feat]
         # G: incidence matrix, [n_vertex, n_edges]: G[i, k] = 1 iff edge k starts in vertex i
         # H: incidence matrix, [n_vertex, n_edges]: G[j, k] = 1 iff edge k ends in vertex j
-        return [self.__extract_at_end(x, G), self.__extract_at_end(x, H)]
+        return [self._extract_at_end(x, G), self._extract_at_end(x, H)]
 
 
 class EdgeAttributeLayer(keras.layers.Lambda):
