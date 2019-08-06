@@ -36,23 +36,27 @@ keras = tf.keras
 #         return (input_shape[1][0], input_shape[0][-1])
 
 
-def idxtransform(idx):
-    # Add leading batch number to indices
-    # Input: idx: point coordinates of shape [batch size, number of points, 2]
-    # Output: indices with added leading batch number
-    r = tf.reshape(tf.range(tf.shape(idx)[0]), [-1, 1, 1]) #create range of batch numbers
-    r = tf.tile(r, tf.concat([[1], tf.shape(idx)[1:-1], [1]], axis=0))
-    return tf.concat([r, idx], axis=-1)
-
-
 class FMapIndexLayer(keras.layers.Lambda):
     # Performs feature indexing from feature map
     # Input: img: images, [batch size, height, width, channel]
     #        idx: keypoint coordinates, [batch size, number of points, 2]
     # Output: keypoint features, [batch size, number of points, channel]
     def __init__(self, **kwargs):
-        f = lambda x: tf.gather_nd(x[0], idxtransform(x[1]))
+        f = lambda x: self.__mapidx2list(x[0], self.__idxtransform(x[1]))
         super(FMapIndexLayer, self).__init__(function=f, **kwargs)
+
+    @staticmethod
+    def __idxtransform(idx):
+        # Add leading batch number to indices
+        # Input: idx: point coordinates of shape [batch size, number of points, 2]
+        # Output: indices with added leading batch number
+        r = tf.reshape(tf.range(tf.shape(idx)[0]), [-1, 1, 1]) #create range of batch numbers
+        r = tf.tile(r, tf.concat([[1], tf.shape(idx)[1:-1], [1]], axis=0))
+        return tf.concat([r, idx], axis=-1)
+
+    @staticmethod
+    def __mapidx2list(img, idx):
+        return tf.gather_nd(img, idxtransform(idx))
 
 
 class EdgeAttributeLayer(keras.layers.Lambda):
