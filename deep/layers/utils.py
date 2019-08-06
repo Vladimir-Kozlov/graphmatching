@@ -57,7 +57,7 @@ class FMapIndexLayer(keras.layers.Lambda):
         return tf.gather_nd(img, self._idxtransform(idx))
 
 
-class EdgeFeatExtract(keras.layers.Layer):
+class EdgeFeatExtract(keras.layers.Lambda):
     def __init__(self, **kwargs):
         f = lambda x: self._extract_both(x[0], x[1], x[2])
         super(EdgeFeatExtract, self).__init__(function=f, **kwargs)
