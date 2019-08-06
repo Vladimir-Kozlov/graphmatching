@@ -59,6 +59,23 @@ class FMapIndexLayer(keras.layers.Lambda):
         return tf.gather_nd(img, idxtransform(idx))
 
 
+class EdgeFeatExtract(keras.layers.Layer):
+    def __init__(self, **kwargs):
+        f = lambda x: self.__extract_both(x[0], x[1], x[2])
+        super(EdgeFeatExtract, self).__init__(function=f, **kwargs)
+
+    @staticmethod
+    def __extract_at_end(x, M):
+        return tf.linalg.matmul(M, tf.to_float(x), transpose_a=True)
+
+    @staticmethod
+    def __extract_both(x, G, H):
+        # x: feature list, [n_vertex, num_of_feat]
+        # G: incidence matrix, [n_vertex, n_edges]: G[i, k] = 1 iff edge k starts in vertex i
+        # H: incidence matrix, [n_vertex, n_edges]: G[j, k] = 1 iff edge k ends in vertex j
+        return [self.__extract_at_end(x, G), self.__extract_at_end(x, H)]
+
+
 class EdgeAttributeLayer(keras.layers.Lambda):
 	# General layer for calculating graph edge attributes
 	# Specific form of lambda layer
@@ -67,5 +84,5 @@ class EdgeAttributeLayer(keras.layers.Lambda):
 	           'l2dist_squared': lambda u, v: tf.reduce_sum(tf.to_float(u - v)**2, axis=-1, keepdims=True)}
 	def __init__(self, attr_func='concat', **kwargs):
 		if isinstance(attr_func, str):
-			attr_func = self.__alias[attr_func]
+			attr_func = lambda x: self.__alias[attr_func](x[0], x[1])
 		super(EdgeAttributeLayer, self).__init__(function=attr_func, **kwargs)
