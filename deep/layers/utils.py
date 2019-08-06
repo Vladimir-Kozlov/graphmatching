@@ -46,7 +46,7 @@ class FMapIndexLayer(keras.layers.Lambda):
         super(FMapIndexLayer, self).__init__(function=f, **kwargs)
 
     @staticmethod
-    def __idxtransform(idx):
+    def _idxtransform(idx):
         # Add leading batch number to indices
         # Input: idx: point coordinates of shape [batch size, number of points, 2]
         # Output: indices with added leading batch number
@@ -55,7 +55,7 @@ class FMapIndexLayer(keras.layers.Lambda):
         return tf.concat([r, idx], axis=-1)
 
     @staticmethod
-    def __mapidx2list(img, idx):
+    def _mapidx2list(img, idx):
         return tf.gather_nd(img, idxtransform(idx))
 
 
