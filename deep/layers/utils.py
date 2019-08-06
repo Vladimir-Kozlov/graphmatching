@@ -75,10 +75,10 @@ class EdgeFeatExtract(keras.layers.Lambda):
 class EdgeAttributeLayer(keras.layers.Lambda):
 	# General layer for calculating graph edge attributes
 	# Specific form of lambda layer
-	_alias = {'concat': lambda u, v: tf.concat([u, v], axis=-1), 
-	          'l2dist': lambda u, v: tf.norm(tf.cast(u - v, tf.float32), ord='euclidean', axis=-1, keepdims=True),
-	          'l2dist_squared': lambda u, v: tf.reduce_sum(tf.cast(u - v, tf.float32)**2, axis=-1, keepdims=True)}
+	_alias = {'concat': lambda x: tf.concat(x, axis=-1), 
+	          'l2dist': lambda x: tf.norm(tf.cast(x[0] - x[1], tf.float32), ord='euclidean', axis=-1, keepdims=True),
+	          'l2dist_squared': lambda x: tf.reduce_sum(tf.cast(x[0] - x[1], tf.float32)**2, axis=-1, keepdims=True)}
 	def __init__(self, attr_func='concat', **kwargs):
 		if isinstance(attr_func, str):
-			attr_func = lambda x: self._alias[attr_func](x[0], x[1])
+			attr_func = self._alias[attr_func]
 		super(EdgeAttributeLayer, self).__init__(function=attr_func, **kwargs)
