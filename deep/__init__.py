@@ -1,2 +1,1 @@
-from . import layers, losses, applications
-
+from deep import layers, losses, applications

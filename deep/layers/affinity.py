@@ -1,4 +1,3 @@
-from __future__ import division
 import tensorflow as tf
 keras = tf.keras
 
@@ -23,9 +22,10 @@ class AffinityLayer(keras.layers.Layer):
         # Input: V_l, V_r: matrices of object features of shape [n1, k] and [n2, k] respectively
         # Output: Mp: pairwise similarities between object pairs, matrix of shape [n1, n2]
         assert isinstance(x, (list, tuple))
+        assert len(x) == 2
         return self.sim_func(x[0], x[1])
 
-    def compute_output_shape(self, input_shape):
+    @staticmethod
+    def compute_output_shape(input_shape):
         assert isinstance(input_shape, (list, tuple))
-        return (input_shape[0][0], input_shape[1][0])
-
+        return input_shape[0][0], input_shape[1][0]

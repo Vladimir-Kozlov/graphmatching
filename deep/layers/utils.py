@@ -1,4 +1,3 @@
-from __future__ import division
 import tensorflow as tf
 keras = tf.keras
 
@@ -42,39 +41,50 @@ class FMapIndexLayer(keras.layers.Lambda):
     #        idx: keypoint coordinates, [batch size, number of points, 2]
     # Output: keypoint features, [batch size, number of points, channel]
     def __init__(self, **kwargs):
-        f = lambda x: self._mapidx2list(x[0], x[1])
-        super(FMapIndexLayer, self).__init__(function=f, **kwargs)
+        super(FMapIndexLayer, self).__init__(function=lambda x: self._mapidx2list(x[0], x[1]), **kwargs)
 
-    def _idxtransform(self, idx):
-        # Add leading batch number to indices
-        # Input: idx: point coordinates of shape [batch size, number of points, 2]
-        # Output: indices with added leading batch number
-        r = tf.reshape(tf.range(tf.shape(idx)[0]), [-1, 1, 1]) #create range of batch numbers
-        r = tf.tile(r, tf.concat([[1], tf.shape(idx)[1:-1], [1]], axis=0))
-        return tf.concat([r, idx], axis=-1)
+    @staticmethod
+    def _mapidx2list(img, idx):
+        def idxtransform(idx):
+            # Appends batch number at the beginning of index
+            r = tf.reshape(tf.range(tf.shape(idx)[0]), [-1, 1, 1])  # create range of batch numbers
+            r = tf.tile(r, tf.concat([[1], tf.shape(idx)[1:-1], [1]], axis=0))
+            return tf.concat([r, idx], axis=-1)
 
-    def _mapidx2list(self, img, idx):
-        return tf.gather_nd(img, self._idxtransform(idx))
+        return tf.gather_nd(img, idxtransform(idx))
 
 
 class EdgeFeatExtract(keras.layers.Lambda):
     def __init__(self, **kwargs):
-        f = lambda x: self._extract_both(x[0], x[1], x[2])
-        super(EdgeFeatExtract, self).__init__(function=f, **kwargs)
+        super(EdgeFeatExtract, self).__init__(function=lambda x: self._extract_both(x[0], x[1], x[2]), **kwargs)
 
-    def _extract_at_end(self, x, M):
-        return tf.linalg.matmul(M, tf.cast(x, tf.float32), transpose_a=True)
+    @staticmethod
+    def _extract_both(x, G, H):
+        """
+        Calculates features on both ends of edges
+        :param x: feature list, [n_vertex, num_of_feat]; extracted from conv-map by FMapIndexLayer, or coordinates
+        :param G: incidence matrix, [n_vertex, n_edges]: G[i, k] = 1 iff edge k starts in vertex i
+        :param H: incidence matrix, [n_vertex, n_edges]: G[j, k] = 1 iff edge k ends in vertex j
+        :return: features on both ends of edges: tuple of matrices of shape [n_edges, num_of_feat] both
+        """
+        def extract_at_end(x, M):
+            return tf.linalg.matmul(M, tf.cast(x, tf.float32), transpose_a=True)
 
-    def _extract_both(self, x, G, H):
-        # x: feature list, [n_vertex, num_of_feat]
-        # G: incidence matrix, [n_vertex, n_edges]: G[i, k] = 1 iff edge k starts in vertex i
-        # H: incidence matrix, [n_vertex, n_edges]: G[j, k] = 1 iff edge k ends in vertex j
-        return [self._extract_at_end(x, G), self._extract_at_end(x, H)]
+        return extract_at_end(x, G), extract_at_end(x, H)
 
 
 class EdgeAttributeLayer(keras.layers.Lambda):
-    # General layer for calculating graph edge attributes
-    # Specific form of lambda layer
+    """
+    General layer for calculating graph edge attributes. Specific form of lambda layer.
+    Designed to be used with EdgeFeatExtract method.
+    Example:
+        x = FMapIndexLayer()(img, idx)
+        x = EdgeFeatExtract()(x, G, H)
+        x = EdgeAttributeLayer(attr_func='concat')(x[0], x[1])
+    Or:
+        x = EdgeFeatExtract(idx, G, H)
+        x = EdgeAttributeLayer(attr_func='l2_dist')(x[0], x[1])
+    """
     def __init__(self, attr_func='concat', **kwargs):
         if isinstance(attr_func, str):
             if attr_func == 'concat':
