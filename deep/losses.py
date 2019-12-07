@@ -3,6 +3,14 @@ import tensorflow as tf
 keras = tf.keras
 
 
+def loss_wrapper(*args, **kwargs):
+    def decorator(loss_to_decorate):
+        def wrapper(y_true, y_pred):
+            return loss_to_decorate(y_true, y_pred, *args, **kwargs)
+        return wrapper
+    return decorator
+
+
 def loss_vertex_match_strict(y_true, y_pred, c=1.):
     """
     Simple loss function
@@ -14,12 +22,14 @@ def loss_vertex_match_strict(y_true, y_pred, c=1.):
     return tf.reduce_mean(y_true * (1. - y_pred) + c * (1. - y_true) * y_pred, axis=[-2, -1], keepdims=False)
 
 
-def loss_vertex_similarity(y_true, y_pred, c_sim=1., c_dissim=1., c_rel=1.):
+def loss_vertex_similarity(y_true, y_pred, c_sim=1., c_dissim=1., c_rel=1., scale=1.):
     weights = np.array([c_sim, c_dissim, c_rel])
     weights /= np.sum(weights)
     y = - tf.math.log(tf.clip_by_value(y_pred, 1e-9, 1.))
     y1 = y - tf.expand_dims(y[:, -1, :], axis=-2)
     y2 = y - tf.expand_dims(y[:, :, -1], axis=-1)
-    z = tf.where(tf.equal(y_true, 1.), weights[0] * y,
-                 -(weights[1] * tf.min(1., y) + weights[2] * (tf.min(1., y1) + tf.min(1., y2))))
-    return tf.reduce_mean(z, axis=[-2, -1], keepdims=False)
+    zeros = tf.zeros(tf.shape(y))
+    z = weights[0] * tf.where(tf.equal(y_true, 1.), y, zeros) + \
+        weights[1] * tf.where(tf.equal(y_true, 0.), - tf.minimum(scale, y), zeros) + \
+        weights[2] * tf.where(tf.equal(y_true, 0.), - tf.minimum(scale, y1) - tf.minimum(scale, y2), zeros)
+    return tf.reduce_sum(z, axis=[-2, -1], keepdims=False)
