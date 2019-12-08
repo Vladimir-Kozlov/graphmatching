@@ -105,7 +105,7 @@ class DummyFeaturesLayer(keras.layers.Layer):
         super(DummyFeaturesLayer, self).__init__(**kwargs)
 
     def build(self, input_shape):
-        self.dummy_features = self.add_weight(name='dummy_feature_vector', shape=input_shape[-1],
+        self.dummy_features = self.add_weight(name='dummy_feature_vector', shape=(input_shape[-1], ),
                                               initializer='zeros', trainable=True)
         super(DummyFeaturesLayer, self).build(input_shape)
 
