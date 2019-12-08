@@ -30,6 +30,6 @@ def loss_vertex_similarity(y_true, y_pred, c_sim=1., c_dissim=1., c_rel=1., scal
     y2 = y - tf.expand_dims(y[:, :, -1], axis=-1)
     zeros = tf.zeros(tf.shape(y))
     z = weights[0] * tf.where(tf.equal(y_true, 1.), y, zeros) + \
-        weights[1] * tf.where(tf.equal(y_true, 0.), - tf.minimum(scale, y), zeros) + \
-        weights[2] * tf.where(tf.equal(y_true, 0.), - tf.minimum(scale, y1) - tf.minimum(scale, y2), zeros)
+        weights[1] * tf.where(tf.equal(y_true, 0.), tf.maximum(0., scale - y), zeros) + \
+        weights[2] * tf.where(tf.equal(y_true, 0.), tf.maximum(0., scale - y1) + tf.maximum(0., scale - y2), zeros)
     return tf.reduce_sum(z, axis=[-2, -1], keepdims=False)

@@ -36,10 +36,12 @@ keras = tf.keras
 
 
 class FMapIndexLayer(keras.layers.Lambda):
-    # Performs feature indexing from feature map
-    # Input: img: images, [batch size, height, width, channel]
-    #        idx: keypoint coordinates, [batch size, number of points, 2]
-    # Output: keypoint features, [batch size, number of points, channel]
+    """
+    Performs feature indexing from feature map
+    Input: img: images, [batch size, height, width, channel]
+           idx: keypoint coordinates, [batch size, number of points, 2]
+    Output: keypoint features, [batch size, number of points, channel]
+    """
     def __init__(self, **kwargs):
         super(FMapIndexLayer, self).__init__(function=lambda x: self._mapidx2list(x[0], x[1]), **kwargs)
 
@@ -64,7 +66,7 @@ class EdgeFeatExtract(keras.layers.Lambda):
         Calculates features on both ends of edges
         :param x: feature list, [n_vertex, num_of_feat]; extracted from conv-map by FMapIndexLayer, or coordinates
         :param G: incidence matrix, [n_vertex, n_edges]: G[i, k] = 1 iff edge k starts in vertex i
-        :param H: incidence matrix, [n_vertex, n_edges]: G[j, k] = 1 iff edge k ends in vertex j
+        :param H: incidence matrix, [n_vertex, n_edges]: H[j, k] = 1 iff edge k ends in vertex j
         :return: features on both ends of edges: tuple of matrices of shape [n_edges, num_of_feat] both
         """
         def extract_at_end(x, M):
@@ -78,12 +80,12 @@ class EdgeAttributeLayer(keras.layers.Lambda):
     General layer for calculating graph edge attributes. Specific form of lambda layer.
     Designed to be used with EdgeFeatExtract method.
     Example:
-        x = FMapIndexLayer()(img, idx)
-        x = EdgeFeatExtract()(x, G, H)
-        x = EdgeAttributeLayer(attr_func='concat')(x[0], x[1])
+        x = FMapIndexLayer()([img, idx])
+        x = EdgeFeatExtract()([x, G, H])
+        x = EdgeAttributeLayer(attr_func='concat')(x)
     Or:
-        x = EdgeFeatExtract(idx, G, H)
-        x = EdgeAttributeLayer(attr_func='l2_dist')(x[0], x[1])
+        x = EdgeFeatExtract([idx, G, H])
+        x = EdgeAttributeLayer(attr_func='l2_dist')(x)
     """
     def __init__(self, attr_func='concat', **kwargs):
         if isinstance(attr_func, str):
@@ -96,3 +98,39 @@ class EdgeAttributeLayer(keras.layers.Lambda):
             else:
                 raise ValueError('Only concat, l2_dist, l2_dist_squared options are available right now')
         super(EdgeAttributeLayer, self).__init__(function=attr_func, **kwargs)
+
+
+class DummyFeaturesLayer(keras.layers.Layer):
+    def __init__(self, **kwargs):
+        super(DummyFeaturesLayer, self).__init__(**kwargs)
+
+    def build(self, input_shape):
+        self.dummy_features = self.add_weight(name='dummy_feature_vector', shape=input_shape[-1],
+                                              initializer='zeros', trainable=True)
+        super(DummyFeaturesLayer, self).build(input_shape)
+
+    def call(self, vertex_features):
+        s = tf.shape(vertex_features)
+        s = tf.concat([s[:-2], [1, s[-1]]], axis=0)
+        return tf.concat([vertex_features, tf.ones(s) * self.dummy_features], axis=-2)
+
+    @staticmethod
+    def compute_output_shape(input_shape):
+        return [input_shape[-2] + 1, input_shape[-1]]
+
+
+class DummyEdgeLayer(keras.layers.Layer):
+    def __init__(self, **kwargs):
+        super(DummyEdgeLayer, self).__init__(**kwargs)
+
+    def build(self, input_shape):
+        super(DummyEdgeLayer, self).build(input_shape)
+
+    def call(self, edges):
+        s = tf.shape(edges)
+        s = tf.concat([s[:-2], [1, s[-1]]], axis=0)
+        return tf.concat([edges, tf.fill(s, 0.)], axis=-2)
+
+    @staticmethod
+    def compute_output_shape(input_shape):
+        return [input_shape[-2] + 1, input_shape[-1]]
