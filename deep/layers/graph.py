@@ -72,7 +72,7 @@ class GraphConvVertexLayer(keras.layers.Layer):
             tf.matmul(tf.matmul(tf.div_no_nan(A, tf.expand_dims(D_in, axis=-2)), VF, transpose_a=True), self.kernel_in) + \
             tf.matmul(tf.matmul(tf.div_no_nan(A, tf.expand_dims(D_out, axis=-1)), VF), self.kernel_out) + \
             tf.matmul(tf.matmul(tf.div_no_nan(G, tf.expand_dims(D_in, axis=-1)), EF), self.kernel_edge_in) + \
-            tf.matmul(tf.matmul(tf.div_no_nan(H, tf.expand_dims(D_out, axis=-1)), EF), self.kernel_edge_in) + \
+            tf.matmul(tf.matmul(tf.div_no_nan(H, tf.expand_dims(D_out, axis=-1)), EF), self.kernel_edge_out) + \
             self.bias
         return self.activation(z)
     
