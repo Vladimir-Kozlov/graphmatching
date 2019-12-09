@@ -106,7 +106,7 @@ class DummyFeaturesLayer(keras.layers.Layer):
 
     def build(self, input_shape):
         self.dummy_features = self.add_weight(name='dummy_feature_vector', shape=(input_shape[-1], ),
-                                              initializer='zeros', trainable=True)
+                                              initializer='uniform', trainable=True)
         super(DummyFeaturesLayer, self).build(input_shape)
 
     def call(self, vertex_features):
@@ -116,7 +116,7 @@ class DummyFeaturesLayer(keras.layers.Layer):
 
     @staticmethod
     def compute_output_shape(input_shape):
-        return [input_shape[-2] + 1, input_shape[-1]]
+        return input_shape[-2] + 1, input_shape[-1]
 
 
 class DummyEdgeLayer(keras.layers.Layer):
