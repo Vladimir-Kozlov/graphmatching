@@ -22,16 +22,14 @@ def loss_vertex_match_strict(y_true, y_pred, c=1.):
     return tf.reduce_mean(y_true * (1. - y_pred) + c * (1. - y_true) * y_pred, axis=[-2, -1], keepdims=False)
 
 
-def loss_vertex_similarity(y_true, y_pred, c_sim=1., c_dissim=1., c_rel=1., scale=1.):
-    weights = np.array([c_sim, c_dissim, c_rel])
+def loss_vertex_similarity(y_true, y_pred, c_sim=1., c_dissim=1., scale=1.):
+    weights = np.array([c_sim, c_dissim])
     weights /= np.sum(weights)
     y = - tf.math.log(tf.clip_by_value(y_pred, 1e-9, 1.))
-    y1 = y - tf.expand_dims(y[:, -1, :], axis=-2)
-    y2 = y - tf.expand_dims(y[:, :, -1], axis=-1)
-    zeros = tf.zeros(tf.shape(y))
+    zeros = tf.zeros_like(y)
+    ones = tf.ones_like(y)
     z = weights[0] * tf.where(tf.equal(y_true, 1.), y, zeros) + \
-        weights[1] * tf.where(tf.equal(y_true, 0.), tf.maximum(0., scale - y), zeros) + \
-        weights[2] * tf.where(tf.equal(y_true, 0.), tf.maximum(0., scale - y1) + tf.maximum(0., scale - y2), zeros)
+        weights[1] * tf.where(tf.equal(y_true, 0.), tf.maximum(0., scale - y), zeros)
     return tf.reduce_sum(z, axis=[-2, -1], keepdims=False) / \
-           tf.maximum(tf.reduce_sum(tf.where(tf.logical_or(tf.equal(y_true, 1.), tf.equal(y_true, 0.)),
-                                             tf.ones(tf.shape(y)), zeros), axis=[-2, -1]), 1.)
+           tf.maximum(tf.reduce_sum(tf.where(tf.logical_or(tf.equal(y_true, 1.), tf.equal(y_true, 0.)), ones, zeros),
+                                    axis=[-2, -1]), 1.)  # mean value for meaningful vertices
