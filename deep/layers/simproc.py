@@ -4,16 +4,16 @@ keras = tf.keras
 
 class SiameseOutputLayer(keras.layers.Layer):
     def __init__(self, **kwargs):
-        super(SiameseOutput, self).__init__(**kwargs)
+        super(SiameseOutputLayer, self).__init__(**kwargs)
 
     def build(self, input_shape):
-        super(SiameseOutput, self).build(input_shape)
+        super(SiameseOutputLayer, self).build(input_shape)
 
     def call(self, vertex_features):
         i1, i2 = vertex_features
-        i1 = tf.expand_dims(i1, axis=-3)
-        i2 = tf.expand_dims(i2, axis=-2)
-        return tf.exp(-tf.reduce_sum(tf.abs(i1 - i2), axis=-1, keepdims=False))
+        i1 = tf.expand_dims(i1, axis=-2)
+        i2 = tf.expand_dims(i2, axis=-3)
+        return tf.exp(-tf.reduce_sum((i1 - i2)**2, axis=-1, keepdims=False) / 2.)
 
     @staticmethod
     def compute_output_shape(input_shape):
